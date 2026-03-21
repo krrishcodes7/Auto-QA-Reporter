@@ -4,6 +4,7 @@ import path from 'path';
 import fs from 'fs/promises';
 import { runScan, SCREENSHOTS_BASE_DIR } from '../qa/scan-engine.js';
 import { generateHtmlReport } from '../qa/report-generator.js';
+import { generatePdfReport } from '../qa/pdf-exporter.js';
 import type { ScanJob } from '../qa/types.js';
 
 const router: IRouter = Router();
@@ -175,6 +176,25 @@ router.get('/scan/:jobId/export/html', (req: Request, res: Response) => {
   res.setHeader('Content-Type', 'text/html');
   res.setHeader('Content-Disposition', `attachment; filename="qa-report-${job.jobId.substring(0, 8)}.html"`);
   res.send(html);
+});
+
+router.get('/scan/:jobId/export/pdf', async (req: Request, res: Response) => {
+  const job = jobs.get(req.params['jobId']!);
+  if (!job || !job.report) {
+    res.status(404).json({ error: 'Report not found' });
+    return;
+  }
+
+  try {
+    const pdfBuffer = await generatePdfReport(job.report);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="qa-report-${job.jobId.substring(0, 8)}.pdf"`);
+    res.setHeader('Content-Length', pdfBuffer.length);
+    res.send(pdfBuffer);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    res.status(500).json({ error: `PDF generation failed: ${msg}` });
+  }
 });
 
 router.get('/screenshots/:filename', async (req: Request, res: Response) => {
