@@ -1,4 +1,4 @@
-import { Download, Copy, Check, FileJson, FileCode } from "lucide-react";
+import { Copy, Check, FileJson, FileCode } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -16,55 +16,52 @@ export function ReportExporter({ jobId, report }: ReportExporterProps) {
   const handleDownloadJSON = () => {
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(report, null, 2));
     const downloadAnchorNode = document.createElement('a');
-    downloadAnchorNode.setAttribute("href",     dataStr);
+    downloadAnchorNode.setAttribute("href", dataStr);
     downloadAnchorNode.setAttribute("download", `qa_report_${jobId}.json`);
-    document.body.appendChild(downloadAnchorNode); // required for firefox
+    document.body.appendChild(downloadAnchorNode);
     downloadAnchorNode.click();
     downloadAnchorNode.remove();
     
     toast({
-      title: "DOWNLOAD COMPLETE",
-      description: "JSON report payload secured.",
+      title: "Download Complete",
+      description: "JSON report has been downloaded.",
     });
   };
 
   const handleDownloadHTML = () => {
-    // We would ideally call the API for the HTML, but since it returns text/html, 
-    // an easy way is to trigger a download directly from the URL.
     window.open(`/api/scan/${jobId}/export/html`, '_blank');
     
     toast({
-      title: "EXPORT INITIATED",
-      description: "HTML report compiling.",
+      title: "Export Initiated",
+      description: "Opening HTML report in new tab.",
     });
   };
 
   const handleCopyLink = () => {
-    // Generate a theoretical share link (assuming app root + ?job=ID)
     const url = `${window.location.origin}${window.location.pathname}?jobId=${jobId}`;
     navigator.clipboard.writeText(url);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
     
     toast({
-      title: "LINK COPIED",
-      description: "Coordinates copied to clipboard.",
+      title: "Link Copied",
+      description: "Share link copied to clipboard.",
     });
   };
 
   return (
-    <div className="flex flex-wrap gap-4 mt-8 pt-8 border-t border-border">
-      <Button onClick={handleDownloadJSON} variant="outline" className="gap-2 bg-card">
+    <div className="flex flex-wrap gap-3 mt-12 pt-8 border-t">
+      <Button onClick={handleDownloadJSON} variant="outline" className="gap-2">
         <FileJson className="w-4 h-4" />
-        DOWNLOAD JSON DATA
+        Export JSON
       </Button>
-      <Button onClick={handleDownloadHTML} variant="outline" className="gap-2 bg-card">
+      <Button onClick={handleDownloadHTML} variant="outline" className="gap-2">
         <FileCode className="w-4 h-4" />
-        EXPORT HTML REPORT
+        View HTML
       </Button>
       <Button onClick={handleCopyLink} variant="secondary" className="gap-2 ml-auto">
         {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-        COPY SHARE LINK
+        Copy Link
       </Button>
     </div>
   );

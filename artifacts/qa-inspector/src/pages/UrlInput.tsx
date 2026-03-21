@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { motion } from "framer-motion";
-import { Play, Globe, ShieldAlert, SlidersHorizontal, BrainCircuit } from "lucide-react";
+import { Globe, SlidersHorizontal, BrainCircuit } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
@@ -32,54 +31,44 @@ export function UrlInput({ onScanStarted }: UrlInputProps) {
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-      className="w-full max-w-3xl mx-auto mt-20"
-    >
-      <div className="text-center mb-12 relative">
-        <ShieldAlert className="w-16 h-16 text-primary mx-auto mb-4 opacity-80" />
-        <h1 className="text-6xl font-display font-bold text-primary mb-2 tracking-widest text-glow" data-text="AUTONOMOUS QA">
-          AUTONOMOUS QA
+    <div className="w-full max-w-xl mx-auto mt-20">
+      <div className="text-center mb-10">
+        <h1 className="text-3xl font-bold mb-2 tracking-tight">
+          QA Inspector
         </h1>
-        <h2 className="text-2xl font-mono text-muted-foreground tracking-[0.3em]">INSPECTION PROTOCOL</h2>
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-32 bg-primary/5 blur-[100px] -z-10 rounded-full"></div>
+        <p className="text-muted-foreground">Automated website analysis</p>
       </div>
 
-      <Card className="p-1">
-        <div className="border border-primary/30 p-8 bg-black/40">
-          <form onSubmit={handleSubmit} className="space-y-8">
+      <Card>
+        <CardContent className="p-8">
+          <form onSubmit={handleSubmit} className="space-y-6">
             {/* URL Input */}
-            <div className="space-y-3">
-              <label className="flex items-center space-x-2 text-sm font-bold font-mono text-primary uppercase tracking-wider">
-                <Globe className="w-4 h-4" />
-                <span>Target Coordinates (URL)</span>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">
+                Website URL
               </label>
-              <div className="relative group">
-                <div className="absolute inset-y-0 left-0 flex items-center pl-4 font-mono text-primary font-bold">
-                  {">"}
-                </div>
+              <div className="relative">
+                <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   type="url"
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
-                  placeholder="https://..."
+                  placeholder="https://example.com"
                   required
-                  className="pl-10 h-16 text-lg tracking-wider"
+                  className="pl-10"
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4">
+            <div className="grid grid-cols-1 gap-6 pt-2">
               {/* Max Pages Slider */}
-              <div className="space-y-4">
-                <div className="flex justify-between items-center text-sm font-mono text-muted-foreground">
-                  <label className="flex items-center space-x-2 uppercase tracking-wider text-primary">
+              <div className="space-y-3">
+                <div className="flex justify-between items-center text-sm">
+                  <label className="flex items-center space-x-2 font-medium">
                     <SlidersHorizontal className="w-4 h-4" />
-                    <span>Crawl Depth</span>
+                    <span>Max Pages</span>
                   </label>
-                  <span className="text-primary font-bold">{maxPages} PGs</span>
+                  <span className="text-muted-foreground">{maxPages} pages</span>
                 </div>
                 <Slider
                   min={5}
@@ -87,60 +76,52 @@ export function UrlInput({ onScanStarted }: UrlInputProps) {
                   step={5}
                   value={[maxPages]}
                   onValueChange={(v) => setMaxPages(v[0])}
-                  className="py-4"
                 />
               </div>
 
               {/* AI Toggle */}
-              <div className="space-y-4 flex flex-col justify-center">
-                <div className="flex items-center justify-between">
-                  <label className="flex items-center space-x-2 text-sm font-mono text-primary uppercase tracking-wider">
+              <div className="flex items-center justify-between border rounded-md p-4 bg-muted/20">
+                <div className="space-y-0.5">
+                  <label className="text-sm font-medium flex items-center space-x-2">
                     <BrainCircuit className="w-4 h-4" />
-                    <span>Neural Network Classify</span>
+                    <span>AI Classification</span>
                   </label>
-                  <Switch
-                    checked={enableAI}
-                    onCheckedChange={setEnableAI}
-                  />
+                  <p className="text-xs text-muted-foreground">
+                    Use AI for bug severity & pattern classification
+                  </p>
                 </div>
-                <p className="text-xs text-muted-foreground font-mono">
-                  Utilize GPT-4o for bug severity & pattern classification.
-                </p>
+                <Switch
+                  checked={enableAI}
+                  onCheckedChange={setEnableAI}
+                />
               </div>
             </div>
 
             {/* Action Button */}
-            <div className="pt-6">
+            <div className="pt-4">
               <Button 
                 type="submit" 
-                size="lg" 
-                className="w-full h-16 text-xl tracking-[0.2em] group relative overflow-hidden"
+                className="w-full"
                 disabled={startScanMutation.isPending}
               >
-                <div className="absolute inset-0 w-full h-full bg-primary/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out z-0"></div>
-                <span className="relative z-10 flex items-center space-x-3">
-                  {startScanMutation.isPending ? (
-                    <>
-                      <div className="w-5 h-5 border-2 border-background border-t-transparent rounded-full animate-spin"></div>
-                      <span>INITIALIZING...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Play className="w-6 h-6 fill-current" />
-                      <span>INITIATE INSPECTION</span>
-                    </>
-                  )}
-                </span>
+                {startScanMutation.isPending ? (
+                  <>
+                    <div className="w-4 h-4 mr-2 border-2 border-background border-t-transparent rounded-full animate-spin"></div>
+                    <span>Initializing...</span>
+                  </>
+                ) : (
+                  <span>Start Scan</span>
+                )}
               </Button>
               {startScanMutation.isError && (
-                <p className="text-destructive font-mono text-sm mt-4 text-center">
-                  ERR: FAILED TO INITIALIZE SCAN.
+                <p className="text-destructive text-sm mt-3 text-center">
+                  Failed to initialize scan. Please try again.
                 </p>
               )}
             </div>
           </form>
-        </div>
+        </CardContent>
       </Card>
-    </motion.div>
+    </div>
   );
 }
