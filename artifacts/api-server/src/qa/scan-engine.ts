@@ -55,6 +55,8 @@ export async function runScan(job: ScanJob): Promise<void> {
     setStepStatus(job, 'crawl', 'completed');
     job.progress = 30;
 
+    if (job.cancelled) return;
+
     // Step 2: Link checking
     setStepStatus(job, 'links', 'running');
     job.currentStep = 'Checking Links';
@@ -65,6 +67,8 @@ export async function runScan(job: ScanJob): Promise<void> {
     setStepStatus(job, 'links', 'completed');
     job.progress = 50;
 
+    if (job.cancelled) return;
+
     // Step 3: UI Inspection
     setStepStatus(job, 'ui', 'running');
     job.currentStep = 'UI Inspection';
@@ -74,6 +78,8 @@ export async function runScan(job: ScanJob): Promise<void> {
 
     setStepStatus(job, 'ui', 'completed');
     job.progress = 70;
+
+    if (job.cancelled) return;
 
     // Step 4: Form Testing
     setStepStatus(job, 'forms', 'running');

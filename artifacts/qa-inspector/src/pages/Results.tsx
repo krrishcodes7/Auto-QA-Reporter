@@ -1,21 +1,35 @@
+import { useEffect } from "react";
 import { formatDuration } from "@/lib/utils";
 import { SummaryCards } from "./SummaryCards";
 import { BugReportTable } from "./BugReportTable";
 import { ScreenshotGallery } from "./ScreenshotGallery";
 import { ReportExporter } from "./ReportExporter";
+import { saveCompletedScan } from "./UrlInput";
 import { useGetScanReport, useGetScanScreenshots } from "@workspace/api-client-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Globe, Image as ImageIcon } from "lucide-react";
+import { Globe, Image as ImageIcon, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface ResultsProps {
   jobId: string;
   onReset: () => void;
+  onRescan: (url: string) => void;
 }
 
-export function Results({ jobId, onReset }: ResultsProps) {
+export function Results({ jobId, onReset, onRescan }: ResultsProps) {
   const { data: report, isLoading: isLoadingReport, error: reportError } = useGetScanReport(jobId);
   const { data: screenshots, isLoading: isLoadingScreenshots } = useGetScanScreenshots(jobId);
+
+  useEffect(() => {
+    if (report) {
+      saveCompletedScan(
+        report.jobId,
+        report.targetUrl,
+        report.summary.totalBugs,
+        report.summary.healthScore ?? 100,
+      );
+    }
+  }, [report]);
 
   if (isLoadingReport) {
     return (
@@ -41,7 +55,6 @@ export function Results({ jobId, onReset }: ResultsProps) {
 
   return (
     <div className="w-full max-w-6xl mx-auto mt-8 pb-24">
-      {/* Header Info */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 pb-4 border-b">
         <div>
           <h1 className="text-3xl font-bold mb-2 tracking-tight">Inspection Report</h1>
@@ -53,9 +66,20 @@ export function Results({ jobId, onReset }: ResultsProps) {
             <span>Duration: {formatDuration(report.scanDurationMs)}</span>
           </div>
         </div>
-        <Button onClick={onReset} variant="secondary" className="mt-4 md:mt-0">
-          New Scan
-        </Button>
+        <div className="flex items-center gap-2 mt-4 md:mt-0">
+          <Button
+            onClick={() => onRescan(report.targetUrl)}
+            variant="outline"
+            size="sm"
+            className="flex items-center gap-2"
+          >
+            <RotateCcw className="w-4 h-4" />
+            Re-scan
+          </Button>
+          <Button onClick={onReset} variant="secondary" size="sm">
+            New Scan
+          </Button>
+        </div>
       </div>
 
       <SummaryCards summary={report.summary} totalPages={report.totalPages} />

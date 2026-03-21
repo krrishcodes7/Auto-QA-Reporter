@@ -328,6 +328,9 @@ components:
           type: integer
         formIssues:
           type: integer
+        healthScore:
+          type: integer
+          description: Site health score 0-100
         severityCounts:
           type: object
           properties:

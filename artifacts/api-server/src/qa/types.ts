@@ -53,6 +53,7 @@ export interface ScanSummary {
   brokenLinks: number;
   uiIssues: number;
   formIssues: number;
+  healthScore: number;
   severityCounts: {
     high: number;
     medium: number;
@@ -88,4 +89,5 @@ export interface ScanJob {
   completedAt?: string;
   report?: ScanReport;
   screenshotsDir?: string;
+  cancelled?: boolean;
 }

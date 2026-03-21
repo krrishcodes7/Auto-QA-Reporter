@@ -1,20 +1,30 @@
 import { useEffect } from "react";
-import { CheckSquare, Square, RefreshCcw, AlertTriangle } from "lucide-react";
+import { CheckSquare, Square, RefreshCcw, AlertTriangle, XCircle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { useGetScanStatus } from "@workspace/api-client-react";
+import { Button } from "@/components/ui/button";
+import { useGetScanStatus, useCancelScan } from "@workspace/api-client-react";
 import { cn } from "@/lib/utils";
 
 interface ScanProgressProps {
   jobId: string;
   onScanComplete: () => void;
+  onCancel: () => void;
 }
 
-export function ScanProgress({ jobId, onScanComplete }: ScanProgressProps) {
+export function ScanProgress({ jobId, onScanComplete, onCancel }: ScanProgressProps) {
   const { data: status } = useGetScanStatus(jobId, {
     query: {
       refetchInterval: (query) => {
         const state = query.state.data?.status;
         return state === "completed" || state === "failed" ? false : 2000;
+      },
+    },
+  });
+
+  const cancelMutation = useCancelScan({
+    mutation: {
+      onSuccess: () => {
+        onCancel();
       },
     },
   });
@@ -38,13 +48,23 @@ export function ScanProgress({ jobId, onScanComplete }: ScanProgressProps) {
   ];
 
   if (status?.status === 'failed') {
+    const isCancelled = status.error === 'Scan cancelled by user';
     return (
       <div className="w-full max-w-2xl mx-auto mt-12">
         <Card className="border-destructive bg-destructive/10">
           <CardContent className="p-6 text-destructive flex flex-col items-center justify-center text-center">
-            <AlertTriangle className="w-10 h-10 mb-4" />
-            <h3 className="font-semibold text-lg mb-2">Scan Failed</h3>
+            {isCancelled ? (
+              <XCircle className="w-10 h-10 mb-4" />
+            ) : (
+              <AlertTriangle className="w-10 h-10 mb-4" />
+            )}
+            <h3 className="font-semibold text-lg mb-2">
+              {isCancelled ? 'Scan Cancelled' : 'Scan Failed'}
+            </h3>
             <p className="text-sm">{status.error || "An unknown error occurred during the scan."}</p>
+            <Button variant="outline" className="mt-6" onClick={onCancel}>
+              Back to Home
+            </Button>
           </CardContent>
         </Card>
       </div>
@@ -61,7 +81,6 @@ export function ScanProgress({ jobId, onScanComplete }: ScanProgressProps) {
       <Card>
         <CardContent className="p-6">
           <div className="space-y-6">
-            {/* Progress Bar */}
             <div className="space-y-2">
               <div className="flex justify-between text-sm font-medium">
                 <span className="capitalize">{status?.currentStep || "Booting"}</span>
@@ -75,7 +94,6 @@ export function ScanProgress({ jobId, onScanComplete }: ScanProgressProps) {
               </div>
             </div>
 
-            {/* Steps Checklist */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t">
               {steps.map((step, idx) => (
                 <div key={idx} className="flex items-center space-x-3 text-sm">
@@ -100,6 +118,19 @@ export function ScanProgress({ jobId, onScanComplete }: ScanProgressProps) {
                   </span>
                 </div>
               ))}
+            </div>
+
+            <div className="pt-2 border-t flex justify-center">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground hover:text-destructive"
+                onClick={() => cancelMutation.mutate({ jobId })}
+                disabled={cancelMutation.isPending}
+              >
+                <XCircle className="w-4 h-4 mr-2" />
+                {cancelMutation.isPending ? 'Cancelling...' : 'Cancel Scan'}
+              </Button>
             </div>
           </div>
         </CardContent>

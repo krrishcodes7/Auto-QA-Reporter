@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { ChevronDown, ChevronUp, AlertCircle, CheckCircle2, ExternalLink } from "lucide-react";
+import { ChevronDown, ChevronUp, AlertCircle, CheckCircle2, ExternalLink, Filter } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import type { ScanReport } from "@workspace/api-client-react";
 
@@ -18,10 +19,12 @@ type UnifiedIssue = {
   details: any;
 };
 
+type SeverityFilter = 'All' | 'High' | 'Medium' | 'Low';
+
 export function BugReportTable({ report }: BugReportTableProps) {
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
+  const [severityFilter, setSeverityFilter] = useState<SeverityFilter>('All');
 
-  // Normalize issues into a unified format for the "All" tab
   const unifiedIssues: UnifiedIssue[] = [
     ...(report.brokenLinks || []).map((link, i) => ({
       id: `link-${i}`,
@@ -55,6 +58,13 @@ export function BugReportTable({ report }: BugReportTableProps) {
     return sevScore[b.severity as keyof typeof sevScore] - sevScore[a.severity as keyof typeof sevScore];
   });
 
+  const severityCounts = {
+    All: unifiedIssues.length,
+    High: unifiedIssues.filter(i => i.severity === 'High').length,
+    Medium: unifiedIssues.filter(i => i.severity === 'Medium').length,
+    Low: unifiedIssues.filter(i => i.severity === 'Low').length,
+  };
+
   const getSeverityBadge = (sev: string) => {
     switch (sev) {
       case 'High': return <Badge variant="destructive">High</Badge>;
@@ -65,11 +75,13 @@ export function BugReportTable({ report }: BugReportTableProps) {
   };
 
   const renderTable = (issues: UnifiedIssue[]) => {
-    if (issues.length === 0) {
+    const filtered = severityFilter === 'All' ? issues : issues.filter(i => i.severity === severityFilter);
+
+    if (filtered.length === 0) {
       return (
         <div className="p-12 text-center border rounded-md mt-4 bg-muted/30">
           <CheckCircle2 className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
-          <p className="text-muted-foreground text-sm">No issues detected in this category.</p>
+          <p className="text-muted-foreground text-sm">No issues found for the current filter.</p>
         </div>
       );
     }
@@ -84,7 +96,7 @@ export function BugReportTable({ report }: BugReportTableProps) {
           <div className="col-span-1 text-right"></div>
         </div>
         <div className="divide-y">
-          {issues.map((issue) => (
+          {filtered.map((issue) => (
             <div key={issue.id} className="flex flex-col hover:bg-muted/30 transition-colors">
               <div 
                 className="grid grid-cols-12 gap-4 p-3 items-center cursor-pointer"
@@ -139,9 +151,30 @@ export function BugReportTable({ report }: BugReportTableProps) {
 
   return (
     <div className="mt-12">
-      <div className="flex items-center gap-2 mb-6">
-        <AlertCircle className="w-5 h-5" />
-        <h2 className="text-xl font-semibold m-0">Issues Log</h2>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <div className="flex items-center gap-2">
+          <AlertCircle className="w-5 h-5" />
+          <h2 className="text-xl font-semibold m-0">Issues Log</h2>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Filter className="w-4 h-4 text-muted-foreground" />
+          <span className="text-sm text-muted-foreground mr-1">Severity:</span>
+          {(['All', 'High', 'Medium', 'Low'] as SeverityFilter[]).map((sev) => (
+            <Button
+              key={sev}
+              variant={severityFilter === sev ? 'default' : 'outline'}
+              size="sm"
+              className="h-7 px-2 text-xs"
+              onClick={() => setSeverityFilter(sev)}
+            >
+              {sev}
+              {severityCounts[sev] > 0 && (
+                <span className="ml-1 opacity-70">({severityCounts[sev]})</span>
+              )}
+            </Button>
+          ))}
+        </div>
       </div>
       
       <Tabs defaultValue="all" className="w-full">

@@ -39,6 +39,12 @@ export function buildReport(params: {
 
   const allSeverities = [...allIssuesWithSeverity, ...brokenLinksBySeverity];
 
+  const highCount = allSeverities.filter((s) => s === 'High').length;
+  const mediumCount = allSeverities.filter((s) => s === 'Medium').length;
+  const lowCount = allSeverities.filter((s) => s === 'Low').length;
+
+  const healthScore = Math.max(0, 100 - highCount * 10 - mediumCount * 4 - lowCount * 1);
+
   return {
     jobId: params.jobId,
     targetUrl: params.targetUrl,
@@ -50,10 +56,11 @@ export function buildReport(params: {
       brokenLinks: params.brokenLinks.length,
       uiIssues: params.uiIssues.length,
       formIssues: params.formIssues.length,
+      healthScore,
       severityCounts: {
-        high: allSeverities.filter((s) => s === 'High').length,
-        medium: allSeverities.filter((s) => s === 'Medium').length,
-        low: allSeverities.filter((s) => s === 'Low').length,
+        high: highCount,
+        medium: mediumCount,
+        low: lowCount,
       },
     },
     brokenLinks: params.brokenLinks,

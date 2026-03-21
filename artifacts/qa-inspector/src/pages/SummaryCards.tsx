@@ -1,4 +1,4 @@
-import { Layers, Link2Off, LayoutTemplate, TextCursorInput } from "lucide-react";
+import { Layers, Link2Off, LayoutTemplate, TextCursorInput, ShieldCheck } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import type { ScanSummary } from "@workspace/api-client-react";
 
@@ -7,32 +7,49 @@ interface SummaryCardsProps {
   totalPages: number;
 }
 
+function HealthScoreRing({ score }: { score: number }) {
+  const color = score >= 80 ? "text-green-500" : score >= 50 ? "text-yellow-500" : "text-destructive";
+  const label = score >= 80 ? "Good" : score >= 50 ? "Fair" : "Poor";
+  return (
+    <div className="flex flex-col items-center justify-center">
+      <span className={`text-3xl font-bold tracking-tight ${color}`}>{score}</span>
+      <span className={`text-xs font-medium mt-0.5 ${color}`}>{label}</span>
+    </div>
+  );
+}
+
 export function SummaryCards({ summary, totalPages }: SummaryCardsProps) {
+  const healthScore = summary.healthScore ?? 100;
+
   const cards = [
+    {
+      title: "Health Score",
+      value: null,
+      icon: ShieldCheck,
+      color: healthScore >= 80 ? "text-green-500" : healthScore >= 50 ? "text-yellow-500" : "text-destructive",
+      custom: <HealthScoreRing score={healthScore} />,
+    },
     {
       title: "Pages Scanned",
       value: totalPages,
       icon: Layers,
       color: "text-foreground",
+      custom: null,
     },
     {
       title: "Broken Links",
       value: summary.brokenLinks,
       icon: Link2Off,
       color: summary.brokenLinks > 0 ? "text-destructive" : "text-foreground",
+      custom: null,
     },
     {
-      title: "UI Issues",
-      value: summary.uiIssues,
+      title: "UI / Form Issues",
+      value: summary.uiIssues + summary.formIssues,
       icon: LayoutTemplate,
-      color: summary.uiIssues > 0 ? "text-warning" : "text-foreground",
+      color: (summary.uiIssues + summary.formIssues) > 0 ? "text-warning" : "text-foreground",
+      custom: null,
     },
-    {
-      title: "Form Issues",
-      value: summary.formIssues,
-      icon: TextCursorInput,
-      color: summary.formIssues > 0 ? "text-warning" : "text-foreground",
-    }
   ];
 
   return (
@@ -43,12 +60,16 @@ export function SummaryCards({ summary, totalPages }: SummaryCardsProps) {
             <div className="flex justify-between items-start">
               <div className="space-y-2">
                 <p className="text-sm font-medium text-muted-foreground">{card.title}</p>
-                <p className={`text-3xl font-bold tracking-tight ${card.color}`}>
-                  {card.value}
-                </p>
+                {card.custom ? (
+                  card.custom
+                ) : (
+                  <p className={`text-3xl font-bold tracking-tight ${card.color}`}>
+                    {card.value}
+                  </p>
+                )}
               </div>
               <div className="p-2 bg-muted/50 rounded-md">
-                <card.icon className="w-5 h-5 text-muted-foreground" />
+                <card.icon className={`w-5 h-5 ${card.color}`} />
               </div>
             </div>
           </CardContent>

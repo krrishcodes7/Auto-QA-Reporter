@@ -10,6 +10,16 @@ const router: IRouter = Router();
 
 const jobs = new Map<string, ScanJob>();
 
+const MAX_CONCURRENT_SCANS = 3;
+
+function getRunningScansCount(): number {
+  let count = 0;
+  for (const job of jobs.values()) {
+    if (job.status === 'pending' || job.status === 'running') count++;
+  }
+  return count;
+}
+
 router.post('/scan', async (req: Request, res: Response) => {
   const { url, maxPages = 20, enableAI = false } = req.body as {
     url?: string;
@@ -28,6 +38,11 @@ router.post('/scan', async (req: Request, res: Response) => {
     if (!['http:', 'https:'].includes(parsedUrl.protocol)) throw new Error('Invalid protocol');
   } catch {
     res.status(400).json({ error: 'Invalid URL — must be a full http/https URL' });
+    return;
+  }
+
+  if (getRunningScansCount() >= MAX_CONCURRENT_SCANS) {
+    res.status(429).json({ error: 'Too many concurrent scans. Please wait for an existing scan to finish.' });
     return;
   }
 
@@ -53,6 +68,33 @@ router.post('/scan', async (req: Request, res: Response) => {
   });
 
   res.json({ jobId, status: 'pending', message: 'Scan started' });
+});
+
+router.delete('/scan/:jobId', (req: Request, res: Response) => {
+  const job = jobs.get(req.params['jobId']!);
+  if (!job) {
+    res.status(404).json({ error: 'Job not found' });
+    return;
+  }
+
+  if (job.status === 'completed' || job.status === 'failed') {
+    res.status(400).json({ error: 'Cannot cancel a finished scan' });
+    return;
+  }
+
+  job.cancelled = true;
+  job.status = 'failed';
+  job.error = 'Scan cancelled by user';
+  job.completedAt = new Date().toISOString();
+  job.currentStep = 'Cancelled';
+
+  for (const step of job.steps) {
+    if (step.status === 'running' || step.status === 'pending') {
+      step.status = 'failed';
+    }
+  }
+
+  res.json({ jobId: job.jobId, status: 'cancelled' });
 });
 
 router.get('/scan/:jobId/status', (req: Request, res: Response) => {

@@ -3,7 +3,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
-// Pages
 import { UrlInput } from "./pages/UrlInput";
 import { ScanProgress } from "./pages/ScanProgress";
 import { Results } from "./pages/Results";
@@ -22,8 +21,8 @@ type AppState = "IDLE" | "SCANNING" | "RESULTS";
 function MainApp() {
   const [appState, setAppState] = useState<AppState>("IDLE");
   const [currentJobId, setCurrentJobId] = useState<string | null>(null);
+  const [rescanUrl, setRescanUrl] = useState<string | undefined>(undefined);
 
-  // Check URL parameters on mount in case someone shared a link
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const jobParam = params.get('jobId');
@@ -36,7 +35,7 @@ function MainApp() {
   const handleScanStarted = (jobId: string) => {
     setCurrentJobId(jobId);
     setAppState("SCANNING");
-    // Update URL without refreshing
+    setRescanUrl(undefined);
     window.history.pushState({}, '', `?jobId=${jobId}`);
   };
 
@@ -47,14 +46,28 @@ function MainApp() {
   const handleReset = () => {
     setAppState("IDLE");
     setCurrentJobId(null);
+    setRescanUrl(undefined);
+    window.history.pushState({}, '', window.location.pathname);
+  };
+
+  const handleCancel = () => {
+    setAppState("IDLE");
+    setCurrentJobId(null);
+    setRescanUrl(undefined);
+    window.history.pushState({}, '', window.location.pathname);
+  };
+
+  const handleRescan = (url: string) => {
+    setRescanUrl(url);
+    setCurrentJobId(null);
+    setAppState("IDLE");
     window.history.pushState({}, '', window.location.pathname);
   };
 
   return (
     <div className="min-h-screen w-full relative flex flex-col px-4 sm:px-6 lg:px-8">
-      {/* Top Navigation Bar - Simple minimal style */}
       <nav className="w-full border-b border-border py-4 flex justify-between items-center mb-8 z-10">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 cursor-pointer" onClick={handleReset}>
           <span className="font-semibold text-lg tracking-tight">QA Inspector</span>
         </div>
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -65,15 +78,19 @@ function MainApp() {
 
       <main className="flex-grow flex flex-col relative z-10 w-full">
         {appState === "IDLE" && (
-          <UrlInput onScanStarted={handleScanStarted} />
+          <UrlInput onScanStarted={handleScanStarted} initialUrl={rescanUrl} />
         )}
         
         {appState === "SCANNING" && currentJobId && (
-          <ScanProgress jobId={currentJobId} onScanComplete={handleScanComplete} />
+          <ScanProgress
+            jobId={currentJobId}
+            onScanComplete={handleScanComplete}
+            onCancel={handleCancel}
+          />
         )}
         
         {appState === "RESULTS" && currentJobId && (
-          <Results jobId={currentJobId} onReset={handleReset} />
+          <Results jobId={currentJobId} onReset={handleReset} onRescan={handleRescan} />
         )}
       </main>
 
