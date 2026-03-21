@@ -149,49 +149,61 @@ export function generateHtmlReport(report: ScanReport): string {
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>QA Report — ${report.targetUrl}</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Barlow+Condensed:wght@400;600;700&display=swap');
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
-    --bg: #0a0a0f;
-    --surface: #12121a;
-    --surface2: #1a1a26;
-    --border: #2a2a3a;
-    --cyan: #00f5ff;
-    --amber: #f59e0b;
-    --red: #ef4444;
-    --green: #22c55e;
-    --text: #e2e8f0;
+    --bg: #ffffff;
+    --surface: #f8fafc;
+    --surface2: #f1f5f9;
+    --border: #e2e8f0;
+    --accent: #1e40af;
+    --amber: #b45309;
+    --red: #dc2626;
+    --green: #16a34a;
+    --purple: #7c3aed;
+    --text: #0f172a;
     --muted: #64748b;
+    --badge-text: #ffffff;
   }
-  body { background: var(--bg); color: var(--text); font-family: 'JetBrains Mono', monospace; padding: 2rem; }
-  h1, h2, h3 { font-family: 'Barlow Condensed', sans-serif; letter-spacing: 0.05em; }
-  .header { border-bottom: 2px solid var(--cyan); padding-bottom: 1.5rem; margin-bottom: 2rem; }
-  .header h1 { font-size: 2.5rem; color: var(--cyan); text-transform: uppercase; }
-  .header .meta { color: var(--muted); font-size: 0.85rem; margin-top: 0.5rem; }
-  .header .target { color: var(--text); font-size: 1rem; margin-top: 0.25rem; }
+  body { background: var(--bg); color: var(--text); font-family: Georgia, 'Times New Roman', serif; padding: 2rem; font-size: 0.9rem; line-height: 1.5; }
+  h1, h2, h3 { font-family: Arial, Helvetica, sans-serif; }
+  .header { border-bottom: 3px solid var(--accent); padding-bottom: 1.25rem; margin-bottom: 2rem; }
+  .header h1 { font-size: 2rem; color: var(--accent); }
+  .header .meta { color: var(--muted); font-size: 0.8rem; margin-top: 0.4rem; font-family: monospace; }
+  .header .target { color: var(--text); font-size: 0.95rem; margin-top: 0.2rem; font-weight: bold; font-family: monospace; }
   .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 2rem; }
-  .kpi-card { background: var(--surface); border: 1px solid var(--border); padding: 1.25rem; }
-  .kpi-card .label { font-size: 0.75rem; text-transform: uppercase; color: var(--muted); letter-spacing: 0.1em; }
-  .kpi-card .value { font-size: 2.5rem; font-weight: 700; margin-top: 0.25rem; }
-  .kpi-card.total .value { color: var(--cyan); }
+  .kpi-card { background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--border); padding: 1rem; border-radius: 4px; }
+  .kpi-card .label { font-size: 0.7rem; text-transform: uppercase; color: var(--muted); letter-spacing: 0.08em; font-family: Arial, sans-serif; font-weight: 600; }
+  .kpi-card .value { font-size: 2.2rem; font-weight: 700; margin-top: 0.2rem; font-family: Arial, sans-serif; }
+  .kpi-card.total { border-left-color: var(--accent); }
+  .kpi-card.total .value { color: var(--accent); }
+  .kpi-card.links { border-left-color: var(--red); }
   .kpi-card.links .value { color: var(--red); }
+  .kpi-card.ui { border-left-color: var(--amber); }
   .kpi-card.ui .value { color: var(--amber); }
-  .kpi-card.forms .value { color: #a78bfa; }
-  .severity-bar { display: flex; gap: 1rem; margin-bottom: 2rem; background: var(--surface); border: 1px solid var(--border); padding: 1rem; }
-  .sev-item { display: flex; align-items: center; gap: 0.5rem; }
-  .sev-dot { width: 12px; height: 12px; border-radius: 50%; }
-  section { margin-bottom: 3rem; }
-  section h2 { font-size: 1.5rem; color: var(--cyan); text-transform: uppercase; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; margin-bottom: 1rem; }
-  table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
-  th { background: var(--surface2); color: var(--muted); text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.1em; padding: 0.6rem 0.8rem; text-align: left; border: 1px solid var(--border); }
-  td { padding: 0.6rem 0.8rem; border: 1px solid var(--border); background: var(--surface); vertical-align: top; }
-  tr:hover td { background: var(--surface2); }
-  .badge { display: inline-block; padding: 0.15rem 0.5rem; font-size: 0.7rem; font-weight: 700; color: #000; letter-spacing: 0.05em; }
-  .url { font-size: 0.7rem; word-break: break-all; max-width: 200px; }
-  .mono { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; }
-  .footer { border-top: 1px solid var(--border); margin-top: 3rem; padding-top: 1rem; color: var(--muted); font-size: 0.75rem; }
-  .empty { color: var(--muted); font-style: italic; padding: 1rem; }
-  @media print { body { background: white; color: black; } }
+  .kpi-card.forms { border-left-color: var(--purple); }
+  .kpi-card.forms .value { color: var(--purple); }
+  .kpi-card.health { border-left-color: var(--green); }
+  .kpi-card.health .value { color: var(--green); }
+  .severity-bar { display: flex; align-items: center; gap: 1.5rem; margin-bottom: 2rem; background: var(--surface2); border: 1px solid var(--border); padding: 0.75rem 1rem; border-radius: 4px; font-family: Arial, sans-serif; }
+  .sev-item { display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; }
+  .sev-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  section { margin-bottom: 2.5rem; page-break-inside: avoid; }
+  section h2 { font-size: 1.2rem; color: var(--accent); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 2px solid var(--border); padding-bottom: 0.4rem; margin-bottom: 1rem; font-family: Arial, sans-serif; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.78rem; font-family: Arial, sans-serif; }
+  th { background: var(--surface2); color: var(--muted); text-transform: uppercase; font-size: 0.68rem; letter-spacing: 0.08em; padding: 0.5rem 0.7rem; text-align: left; border: 1px solid var(--border); font-weight: 700; }
+  td { padding: 0.5rem 0.7rem; border: 1px solid var(--border); background: var(--bg); vertical-align: top; color: var(--text); }
+  tr:nth-child(even) td { background: var(--surface); }
+  .badge { display: inline-block; padding: 0.2rem 0.5rem; font-size: 0.68rem; font-weight: 700; color: var(--badge-text); letter-spacing: 0.04em; border-radius: 3px; }
+  .url { font-size: 0.68rem; word-break: break-all; max-width: 200px; font-family: monospace; color: var(--muted); }
+  .mono { font-family: monospace; font-size: 0.72rem; }
+  .detail-block { margin-top: 0.3rem; font-size: 0.75rem; color: var(--muted); font-style: italic; }
+  .footer { border-top: 1px solid var(--border); margin-top: 2rem; padding-top: 0.75rem; color: var(--muted); font-size: 0.72rem; font-family: Arial, sans-serif; }
+  .empty { color: var(--muted); font-style: italic; padding: 0.75rem 0; }
+  @media print {
+    body { background: #ffffff !important; color: #000000 !important; }
+    td { background: #ffffff !important; color: #000000 !important; }
+    tr:nth-child(even) td { background: #f8fafc !important; }
+  }
 </style>
 </head>
 <body>
