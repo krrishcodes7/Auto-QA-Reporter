@@ -2,7 +2,7 @@ import { Router, type IRouter, type Request, type Response } from 'express';
 import { randomUUID } from 'crypto';
 import path from 'path';
 import fs from 'fs/promises';
-import { runScan, SCREENSHOTS_BASE_DIR } from '../qa/scan-engine.js';
+import { runScan, SCREENSHOTS_BASE_DIR, loadReportFromDisk } from '../qa/scan-engine.js';
 import { generateHtmlReport } from '../qa/report-generator.js';
 import { generatePdfReport } from '../qa/pdf-exporter.js';
 import type { ScanJob } from '../qa/types.js';
@@ -118,42 +118,53 @@ router.get('/scan/:jobId/status', (req: Request, res: Response) => {
   });
 });
 
-router.get('/scan/:jobId/report', (req: Request, res: Response) => {
-  const job = jobs.get(req.params['jobId']!);
-  if (!job) {
-    res.status(404).json({ error: 'Job not found' });
+router.get('/scan/:jobId/report', async (req: Request, res: Response) => {
+  const jobId = req.params['jobId']!;
+  const job = jobs.get(jobId);
+
+  if (job) {
+    if (job.status !== 'completed' || !job.report) {
+      res.status(202).json({ error: 'Report not ready yet', status: job.status });
+      return;
+    }
+    res.json(job.report);
     return;
   }
 
-  if (job.status !== 'completed' || !job.report) {
-    res.status(202).json({ error: 'Report not ready yet', status: job.status });
+  // Fall back to disk-persisted report
+  const diskReport = await loadReportFromDisk(jobId);
+  if (diskReport) {
+    res.json(diskReport);
     return;
   }
 
-  res.json(job.report);
+  res.status(404).json({ error: 'Job not found' });
 });
 
 router.get('/scan/:jobId/screenshots', async (req: Request, res: Response) => {
-  const job = jobs.get(req.params['jobId']!);
-  if (!job) {
-    res.status(404).json({ error: 'Job not found' });
-    return;
-  }
+  const jobId = req.params['jobId']!;
+  const job = jobs.get(jobId);
+  const report = job?.report ?? await loadReportFromDisk(jobId);
 
-  const screenshotsDir = path.join(SCREENSHOTS_BASE_DIR, job.jobId);
+  const screenshotsDir = path.join(SCREENSHOTS_BASE_DIR, jobId);
   let files: string[] = [];
 
   try {
     const entries = await fs.readdir(screenshotsDir);
     files = entries.filter((f) => f.endsWith('.png'));
   } catch {
-    files = [];
+    // No screenshots directory — return empty list
+  }
+
+  if (files.length === 0 && !report) {
+    res.status(404).json({ error: 'Job not found' });
+    return;
   }
 
   const screenshots = files.map((filename) => {
     const pageUrl =
-      job.report?.pagesScanned.find((p) => p.screenshotFile === filename)?.url ||
-      filename.replace(`${job.jobId}_`, '').replace(/_/g, '/').replace('.png', '');
+      report?.pagesScanned.find((p) => p.screenshotFile === filename)?.url ||
+      filename.replace(`${jobId}_`, '').replace(/_/g, '/').replace('.png', '');
 
     return {
       filename,
@@ -162,33 +173,35 @@ router.get('/scan/:jobId/screenshots', async (req: Request, res: Response) => {
     };
   });
 
-  res.json({ jobId: job.jobId, screenshots });
+  res.json({ jobId, screenshots });
 });
 
-router.get('/scan/:jobId/export/html', (req: Request, res: Response) => {
-  const job = jobs.get(req.params['jobId']!);
-  if (!job || !job.report) {
+router.get('/scan/:jobId/export/html', async (req: Request, res: Response) => {
+  const jobId = req.params['jobId']!;
+  const report = jobs.get(jobId)?.report ?? await loadReportFromDisk(jobId);
+  if (!report) {
     res.status(404).json({ error: 'Report not found' });
     return;
   }
 
-  const html = generateHtmlReport(job.report);
+  const html = generateHtmlReport(report);
   res.setHeader('Content-Type', 'text/html');
-  res.setHeader('Content-Disposition', `attachment; filename="qa-report-${job.jobId.substring(0, 8)}.html"`);
+  res.setHeader('Content-Disposition', `attachment; filename="qa-report-${jobId.substring(0, 8)}.html"`);
   res.send(html);
 });
 
 router.get('/scan/:jobId/export/pdf', async (req: Request, res: Response) => {
-  const job = jobs.get(req.params['jobId']!);
-  if (!job || !job.report) {
+  const jobId = req.params['jobId']!;
+  const report = jobs.get(jobId)?.report ?? await loadReportFromDisk(jobId);
+  if (!report) {
     res.status(404).json({ error: 'Report not found' });
     return;
   }
 
   try {
-    const pdfBuffer = await generatePdfReport(job.report);
+    const pdfBuffer = await generatePdfReport(report);
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="qa-report-${job.jobId.substring(0, 8)}.pdf"`);
+    res.setHeader('Content-Disposition', `attachment; filename="qa-report-${jobId.substring(0, 8)}.pdf"`);
     res.setHeader('Content-Length', pdfBuffer.length);
     res.send(pdfBuffer);
   } catch (err) {

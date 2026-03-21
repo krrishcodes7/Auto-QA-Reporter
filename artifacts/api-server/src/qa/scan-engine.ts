@@ -1,13 +1,24 @@
 import path from 'path';
+import fs from 'fs/promises';
 import { crawlSite } from './crawler.js';
 import { checkLinks } from './link-checker.js';
 import { inspectUI } from './ui-inspector.js';
 import { testForms } from './form-tester.js';
 import { classifyBug } from './ai-classifier.js';
 import { buildReport } from './report-generator.js';
-import type { ScanJob, ScanStep } from './types.js';
+import type { ScanJob, ScanReport, ScanStep } from './types.js';
 
 export const SCREENSHOTS_BASE_DIR = path.join(process.cwd(), '..', '..', 'screenshots');
+
+export async function loadReportFromDisk(jobId: string): Promise<ScanReport | null> {
+  try {
+    const reportPath = path.join(SCREENSHOTS_BASE_DIR, jobId, 'report.json');
+    const raw = await fs.readFile(reportPath, 'utf-8');
+    return JSON.parse(raw) as ScanReport;
+  } catch {
+    return null;
+  }
+}
 
 function makeSteps(): ScanStep[] {
   return [
@@ -153,6 +164,14 @@ export async function runScan(job: ScanJob): Promise<void> {
     job.completedAt = new Date().toISOString();
     job.currentStep = 'Scan Complete';
     job.screenshotsDir = screenshotsDir;
+
+    // Persist report to disk so it survives server restarts
+    try {
+      const reportPath = path.join(screenshotsDir, 'report.json');
+      await fs.writeFile(reportPath, JSON.stringify(report, null, 2), 'utf-8');
+    } catch {
+      // Non-fatal: report is still in memory for this session
+    }
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     job.status = 'failed';
