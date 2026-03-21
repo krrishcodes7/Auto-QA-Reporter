@@ -70,6 +70,8 @@ export interface BrokenLink {
   statusCode: number;
   statusType: string;
   error?: string;
+  impact?: string;
+  recommendation?: string;
   aiCategory?: string;
   aiConfidence?: number;
 }
@@ -88,6 +90,8 @@ export interface UIIssue {
   severity: UIIssueSeverity;
   issueType: string;
   description: string;
+  impact?: string;
+  recommendation?: string;
   selector?: string;
   aiCategory?: string;
   aiConfidence?: number;
@@ -107,6 +111,8 @@ export interface FormIssue {
   formSelector: string;
   issueType: string;
   description: string;
+  impact?: string;
+  recommendation?: string;
   severity: FormIssueSeverity;
   aiCategory?: string;
   aiConfidence?: number;
