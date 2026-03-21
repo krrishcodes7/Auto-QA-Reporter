@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "export NODE_ENV=development && pnpm run build && pnpm run start",
+    "dev": "export NODE_ENV=development && export LD_LIBRARY_PATH=/nix/store/24w3s75aa2lrvvxsybficn8y3zxd27kp-mesa-libgbm-25.1.0/lib:$LD_LIBRARY_PATH && pnpm run build && pnpm run start",
     "build": "node ./build.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit"
@@ -16,8 +16,10 @@
     "cors": "^2",
     "drizzle-orm": "catalog:",
     "express": "^5",
+    "httpx": "^3.0.1",
     "pino": "^9",
-    "pino-http": "^10"
+    "pino-http": "^10",
+    "playwright": "^1.58.2"
   },
   "devDependencies": {
     "@types/cookie-parser": "^1.4.10",
