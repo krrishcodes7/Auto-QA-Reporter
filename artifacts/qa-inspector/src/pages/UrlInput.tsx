@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Globe, SlidersHorizontal, BrainCircuit, History, ExternalLink, Trash2 } from "lucide-react";
+import { Globe, SlidersHorizontal, BrainCircuit, History, ExternalLink, Trash2, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
@@ -56,6 +56,9 @@ export function saveCompletedScan(jobId: string, url: string, totalBugs: number,
   });
 }
 
+const DEMO_JOB_ID = "394d6243-302a-4f69-b303-fc56118c7012";
+const DEMO_URL = "https://books.toscrape.com/";
+
 export function UrlInput({ onScanStarted, initialUrl }: UrlInputProps) {
   const [url, setUrl] = useState(initialUrl || "https://example.com");
   const [maxPages, setMaxPages] = useState(20);
@@ -101,11 +104,34 @@ export function UrlInput({ onScanStarted, initialUrl }: UrlInputProps) {
 
   return (
     <div className="w-full max-w-xl mx-auto mt-12">
-      <div className="text-center mb-10">
+      <div className="text-center mb-8">
         <h1 className="text-3xl font-bold mb-2 tracking-tight">
           QA Inspector
         </h1>
         <p className="text-muted-foreground">Automated website analysis</p>
+      </div>
+
+      <div
+        className="mb-6 flex items-center justify-between gap-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 cursor-pointer hover:bg-primary/10 transition-colors"
+        onClick={() => onScanStarted(DEMO_JOB_ID)}
+      >
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-primary flex items-center gap-1.5">
+            <Zap className="w-3.5 h-3.5 shrink-0" />
+            Try the live demo
+          </p>
+          <p className="text-xs text-muted-foreground truncate mt-0.5">
+            {DEMO_URL} — 324 issues found across 8 pages
+          </p>
+        </div>
+        <Button
+          size="sm"
+          variant="outline"
+          className="shrink-0 border-primary/30 text-primary hover:bg-primary/10"
+          onClick={(e) => { e.stopPropagation(); onScanStarted(DEMO_JOB_ID); }}
+        >
+          View report
+        </Button>
       </div>
 
       <Card>
