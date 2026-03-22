@@ -1,6 +1,13 @@
-import { Copy, Check, FileJson, FileCode, FileText, Loader2 } from "lucide-react";
-import { useState } from "react";
+import { Copy, Check, FileJson, FileCode, FileText, Loader2, Download, ChevronDown } from "lucide-react";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 import type { ScanReport } from "@workspace/api-client-react";
 
@@ -13,37 +20,40 @@ export function ReportExporter({ jobId, report }: ReportExporterProps) {
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [open, setOpen] = useState(false);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleMouseEnter = () => {
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+    setOpen(true);
+  };
+
+  const handleMouseLeave = () => {
+    closeTimer.current = setTimeout(() => setOpen(false), 120);
+  };
 
   const handleDownloadJSON = () => {
+    setOpen(false);
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(report, null, 2));
-    const downloadAnchorNode = document.createElement('a');
-    downloadAnchorNode.setAttribute("href", dataStr);
-    downloadAnchorNode.setAttribute("download", `qa_report_${jobId}.json`);
-    document.body.appendChild(downloadAnchorNode);
-    downloadAnchorNode.click();
-    downloadAnchorNode.remove();
-    
-    toast({
-      title: "Download Complete",
-      description: "JSON report has been downloaded.",
-    });
+    const a = document.createElement('a');
+    a.setAttribute("href", dataStr);
+    a.setAttribute("download", `qa_report_${jobId}.json`);
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    toast({ title: "Downloaded", description: "JSON report saved." });
   };
 
   const handleDownloadHTML = () => {
+    setOpen(false);
     window.open(`/api/scan/${jobId}/export/html`, '_blank');
-    
-    toast({
-      title: "Export Initiated",
-      description: "Opening HTML report in new tab.",
-    });
+    toast({ title: "Opened", description: "HTML report opened in new tab." });
   };
 
   const handleDownloadPDF = async () => {
+    setOpen(false);
     setPdfLoading(true);
-    toast({
-      title: "Generating PDF",
-      description: "This may take a few seconds...",
-    });
+    toast({ title: "Generating PDF", description: "This may take a few seconds..." });
 
     try {
       const response = await fetch(`/api/scan/${jobId}/export/pdf`);
@@ -51,7 +61,6 @@ export function ReportExporter({ jobId, report }: ReportExporterProps) {
         const err = await response.json().catch(() => ({ error: 'Unknown error' }));
         throw new Error(err.error || 'Failed to generate PDF');
       }
-
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -61,11 +70,7 @@ export function ReportExporter({ jobId, report }: ReportExporterProps) {
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
-
-      toast({
-        title: "PDF Downloaded",
-        description: "Your report has been saved as a PDF.",
-      });
+      toast({ title: "PDF Downloaded", description: "Report saved as PDF." });
     } catch (err) {
       toast({
         title: "PDF Export Failed",
@@ -82,31 +87,50 @@ export function ReportExporter({ jobId, report }: ReportExporterProps) {
     navigator.clipboard.writeText(url);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-    
-    toast({
-      title: "Link Copied",
-      description: "Share link copied to clipboard.",
-    });
+    toast({ title: "Link Copied", description: "Share link copied to clipboard." });
   };
 
   return (
-    <div className="flex flex-wrap gap-3 mt-12 pt-8 border-t">
-      <Button onClick={handleDownloadJSON} variant="outline" className="gap-2">
-        <FileJson className="w-4 h-4" />
-        Export JSON
-      </Button>
-      <Button onClick={handleDownloadHTML} variant="outline" className="gap-2">
-        <FileCode className="w-4 h-4" />
-        View HTML
-      </Button>
-      <Button onClick={handleDownloadPDF} variant="outline" className="gap-2" disabled={pdfLoading}>
-        {pdfLoading ? (
-          <Loader2 className="w-4 h-4 animate-spin" />
-        ) : (
-          <FileText className="w-4 h-4" />
-        )}
-        {pdfLoading ? 'Generating PDF...' : 'Export PDF'}
-      </Button>
+    <div className="flex items-center gap-3 mt-12 pt-8 border-t">
+      <DropdownMenu open={open} onOpenChange={setOpen}>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="outline"
+            className="gap-2"
+            disabled={pdfLoading}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+          >
+            {pdfLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Download className="w-4 h-4" />
+            )}
+            {pdfLoading ? "Generating PDF…" : "Export"}
+            {!pdfLoading && <ChevronDown className="w-3 h-3 opacity-60" />}
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          align="start"
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+        >
+          <DropdownMenuItem onClick={handleDownloadPDF} className="gap-2 cursor-pointer">
+            <FileText className="w-4 h-4" />
+            Export as PDF
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={handleDownloadHTML} className="gap-2 cursor-pointer">
+            <FileCode className="w-4 h-4" />
+            Export as HTML
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={handleDownloadJSON} className="gap-2 cursor-pointer">
+            <FileJson className="w-4 h-4" />
+            Export as JSON
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
       <Button onClick={handleCopyLink} variant="secondary" className="gap-2 ml-auto">
         {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
         Copy Link
