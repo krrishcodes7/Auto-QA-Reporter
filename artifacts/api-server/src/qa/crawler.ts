@@ -2,6 +2,7 @@ import { chromium, type Browser, type Page } from 'playwright';
 import path from 'path';
 import fs from 'fs/promises';
 import type { PageScanned } from './types.js';
+import { playwrightEnv } from './playwright-env.js';
 
 export interface CrawlResult {
   pages: PageScanned[];
@@ -48,14 +49,9 @@ export async function crawlSite(
   await fs.mkdir(screenshotsDir, { recursive: true });
 
   try {
-    const extraLibPath = '/nix/store/24w3s75aa2lrvvxsybficn8y3zxd27kp-mesa-libgbm-25.1.0/lib';
-    const ldPath = process.env['LD_LIBRARY_PATH']
-      ? `${extraLibPath}:${process.env['LD_LIBRARY_PATH']}`
-      : extraLibPath;
-
     browser = await chromium.launch({
       headless: true,
-      env: { ...process.env, LD_LIBRARY_PATH: ldPath } as Record<string, string>,
+      env: playwrightEnv(),
     });
     const context = await browser.newContext({
       userAgent: 'Mozilla/5.0 (compatible; AutonomousQAInspector/1.0)',

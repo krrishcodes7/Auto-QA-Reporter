@@ -1,19 +1,15 @@
 import { chromium } from 'playwright';
 import type { UIIssue, Severity } from './types.js';
+import { playwrightEnv } from './playwright-env.js';
 
 export async function inspectUI(pages: Array<{ url: string }>): Promise<UIIssue[]> {
   const issues: UIIssue[] = [];
-
-  const extraLibPath = '/nix/store/24w3s75aa2lrvvxsybficn8y3zxd27kp-mesa-libgbm-25.1.0/lib';
-  const ldPath = process.env['LD_LIBRARY_PATH']
-    ? `${extraLibPath}:${process.env['LD_LIBRARY_PATH']}`
-    : extraLibPath;
 
   let browser = null;
   try {
     browser = await chromium.launch({
       headless: true,
-      env: { ...process.env, LD_LIBRARY_PATH: ldPath } as Record<string, string>,
+      env: playwrightEnv(),
     });
     const context = await browser.newContext({
       viewport: { width: 1280, height: 800 },

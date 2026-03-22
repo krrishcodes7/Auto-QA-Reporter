@@ -1,15 +1,14 @@
 import { chromium } from 'playwright';
 import { generateHtmlReport } from './report-generator.js';
 import type { ScanReport } from './types.js';
-
-const ldPath = `/nix/store/24w3s75aa2lrvvxsybficn8y3zxd27kp-mesa-libgbm-25.1.0/lib${process.env['LD_LIBRARY_PATH'] ? `:${process.env['LD_LIBRARY_PATH']}` : ''}`;
+import { playwrightEnv } from './playwright-env.js';
 
 export async function generatePdfReport(report: ScanReport): Promise<Buffer> {
   const html = generateHtmlReport(report);
 
   const browser = await chromium.launch({
     headless: true,
-    env: { ...process.env, LD_LIBRARY_PATH: ldPath } as Record<string, string>,
+    env: playwrightEnv(),
   });
 
   try {

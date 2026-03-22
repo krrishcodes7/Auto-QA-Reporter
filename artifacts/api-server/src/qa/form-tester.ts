@@ -1,5 +1,6 @@
 import { chromium } from 'playwright';
 import type { FormIssue } from './types.js';
+import { playwrightEnv } from './playwright-env.js';
 
 const SQL_INJECTION_STRINGS = [
   "' OR '1'='1",
@@ -15,16 +16,11 @@ const XSS_STRINGS = [
 export async function testForms(pages: Array<{ url: string }>): Promise<FormIssue[]> {
   const issues: FormIssue[] = [];
 
-  const extraLibPath = '/nix/store/24w3s75aa2lrvvxsybficn8y3zxd27kp-mesa-libgbm-25.1.0/lib';
-  const ldPath = process.env['LD_LIBRARY_PATH']
-    ? `${extraLibPath}:${process.env['LD_LIBRARY_PATH']}`
-    : extraLibPath;
-
   let browser = null;
   try {
     browser = await chromium.launch({
       headless: true,
-      env: { ...process.env, LD_LIBRARY_PATH: ldPath } as Record<string, string>,
+      env: playwrightEnv(),
     });
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
 
