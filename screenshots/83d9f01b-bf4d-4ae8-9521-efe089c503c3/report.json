@@ -1,0 +1,32 @@
+{
+  "jobId": "83d9f01b-bf4d-4ae8-9521-efe089c503c3",
+  "targetUrl": "https://www.redbus.in/railways",
+  "scannedAt": "2026-03-28T05:42:26.892Z",
+  "totalPages": 1,
+  "scanDurationMs": 1023,
+  "summary": {
+    "totalBugs": 0,
+    "brokenLinks": 0,
+    "uiIssues": 0,
+    "formIssues": 0,
+    "healthScore": 100,
+    "severityCounts": {
+      "high": 0,
+      "medium": 0,
+      "low": 0
+    }
+  },
+  "brokenLinks": [],
+  "uiIssues": [],
+  "formIssues": [],
+  "pagesScanned": [
+    {
+      "url": "https://www.redbus.in/railways",
+      "statusCode": 0,
+      "loadTimeMs": 121,
+      "linksFound": 0,
+      "formsFound": 0,
+      "title": "Error: page.goto: net::ERR_HTTP2_PROTOCOL_ERROR at https://www.redbus.in/railways\nCall log:\n\u001b[2m  - navigat"
+    }
+  ]
+}
