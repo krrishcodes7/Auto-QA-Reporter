@@ -250,6 +250,8 @@ components:
     UIIssue:
       type: object
       properties:
+        id:
+          type: string
         page:
           type: string
         severity:
@@ -260,6 +262,8 @@ components:
         description:
           type: string
         selector:
+          type: string
+        screenshotFile:
           type: string
         aiCategory:
           type: string
@@ -274,6 +278,8 @@ components:
     FormIssue:
       type: object
       properties:
+        id:
+          type: string
         page:
           type: string
         formSelector:
@@ -285,6 +291,8 @@ components:
         severity:
           type: string
           enum: [Low, Medium, High]
+        screenshotFile:
+          type: string
         aiCategory:
           type: string
         aiConfidence:

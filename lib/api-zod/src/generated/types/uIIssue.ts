@@ -8,11 +8,13 @@
 import type { UIIssueSeverity } from "./uIIssueSeverity";
 
 export interface UIIssue {
+  id?: string;
   page: string;
   severity: UIIssueSeverity;
   issueType: string;
   description: string;
   selector?: string;
+  screenshotFile?: string;
   aiCategory?: string;
   aiConfidence?: number;
 }

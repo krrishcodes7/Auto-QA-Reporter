@@ -78,6 +78,7 @@ export const GetScanReportResponse = zod.object({
     brokenLinks: zod.number(),
     uiIssues: zod.number(),
     formIssues: zod.number(),
+    healthScore: zod.number().optional().describe("Site health score 0-100"),
     severityCounts: zod.object({
       high: zod.number(),
       medium: zod.number(),
@@ -97,22 +98,26 @@ export const GetScanReportResponse = zod.object({
   ),
   uiIssues: zod.array(
     zod.object({
+      id: zod.string().optional(),
       page: zod.string(),
       severity: zod.enum(["Low", "Medium", "High"]),
       issueType: zod.string(),
       description: zod.string(),
       selector: zod.string().optional(),
+      screenshotFile: zod.string().optional(),
       aiCategory: zod.string().optional(),
       aiConfidence: zod.number().optional(),
     }),
   ),
   formIssues: zod.array(
     zod.object({
+      id: zod.string().optional(),
       page: zod.string(),
       formSelector: zod.string(),
       issueType: zod.string(),
       description: zod.string(),
       severity: zod.enum(["Low", "Medium", "High"]),
+      screenshotFile: zod.string().optional(),
       aiCategory: zod.string().optional(),
       aiConfidence: zod.number().optional(),
     }),

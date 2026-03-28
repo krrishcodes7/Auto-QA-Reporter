@@ -21,6 +21,7 @@ export interface BrokenLink {
 }
 
 export interface UIIssue {
+  id?: string;
   page: string;
   severity: Severity;
   issueType: string;
@@ -28,11 +29,13 @@ export interface UIIssue {
   impact?: string;
   recommendation?: string;
   selector?: string;
+  screenshotFile?: string;
   aiCategory?: string;
   aiConfidence?: number;
 }
 
 export interface FormIssue {
+  id?: string;
   page: string;
   formSelector: string;
   issueType: string;
@@ -40,6 +43,7 @@ export interface FormIssue {
   impact?: string;
   recommendation?: string;
   severity: Severity;
+  screenshotFile?: string;
   aiCategory?: string;
   aiConfidence?: number;
 }

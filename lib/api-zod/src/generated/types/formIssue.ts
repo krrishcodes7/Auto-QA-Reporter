@@ -8,11 +8,13 @@
 import type { FormIssueSeverity } from "./formIssueSeverity";
 
 export interface FormIssue {
+  id?: string;
   page: string;
   formSelector: string;
   issueType: string;
   description: string;
   severity: FormIssueSeverity;
+  screenshotFile?: string;
   aiCategory?: string;
   aiConfidence?: number;
 }

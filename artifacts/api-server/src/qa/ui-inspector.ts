@@ -1,9 +1,14 @@
 import { chromium } from 'playwright';
 import type { UIIssue, Severity } from './types.js';
 import { playwrightEnv } from './playwright-env.js';
+import { captureIssueScreenshot } from './screenshot-utils.js';
 
-export async function inspectUI(pages: Array<{ url: string }>): Promise<UIIssue[]> {
+export async function inspectUI(
+  pages: Array<{ url: string }>,
+  screenshotsDir?: string
+): Promise<UIIssue[]> {
   const issues: UIIssue[] = [];
+  let issueCounter = 0;
 
   let browser = null;
   try {
@@ -226,15 +231,31 @@ export async function inspectUI(pages: Array<{ url: string }>): Promise<UIIssue[
           return found.map((issue) => ({ ...issue, page: pageUrl }));
         }, url);
 
-        for (const issue of pageIssues) {
+        // Capture highlighted screenshots for each issue while the page is still open
+        for (const rawIssue of pageIssues) {
+          issueCounter += 1;
+          const issueId = `ui-${issueCounter}`;
+          let screenshotFile: string | undefined;
+
+          if (screenshotsDir && rawIssue.selector) {
+            screenshotFile = await captureIssueScreenshot(
+              page,
+              rawIssue.selector,
+              issueId,
+              screenshotsDir
+            );
+          }
+
           issues.push({
-            page: issue.page as string,
-            severity: issue.severity as Severity,
-            issueType: issue.issueType,
-            description: issue.description,
-            impact: issue.impact,
-            recommendation: issue.recommendation,
-            selector: issue.selector,
+            id: issueId,
+            page: rawIssue.page as string,
+            severity: rawIssue.severity as Severity,
+            issueType: rawIssue.issueType,
+            description: rawIssue.description,
+            impact: rawIssue.impact,
+            recommendation: rawIssue.recommendation,
+            selector: rawIssue.selector,
+            screenshotFile,
           });
         }
       } catch {

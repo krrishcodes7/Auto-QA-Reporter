@@ -12,5 +12,7 @@ export interface ScanSummary {
   brokenLinks: number;
   uiIssues: number;
   formIssues: number;
+  /** Site health score 0-100 */
+  healthScore?: number;
   severityCounts: ScanSummarySeverityCounts;
 }

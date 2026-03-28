@@ -1,6 +1,7 @@
 import { chromium } from 'playwright';
 import type { FormIssue } from './types.js';
 import { playwrightEnv } from './playwright-env.js';
+import { captureIssueScreenshot } from './screenshot-utils.js';
 
 const SQL_INJECTION_STRINGS = [
   "' OR '1'='1",
@@ -13,8 +14,37 @@ const XSS_STRINGS = [
   '"><script>alert(1)</script>',
 ];
 
-export async function testForms(pages: Array<{ url: string }>): Promise<FormIssue[]> {
+export async function testForms(
+  pages: Array<{ url: string }>,
+  screenshotsDir?: string
+): Promise<FormIssue[]> {
   const issues: FormIssue[] = [];
+  let issueCounter = 0;
+
+  /**
+   * Helper: push a form issue and capture a highlighted screenshot of the
+   * form element (or a specific child selector) while the provided page is open.
+   */
+  async function pushFormIssue(
+    partial: Omit<FormIssue, 'id' | 'screenshotFile'>,
+    activePage: import('playwright').Page,
+    highlightSelector: string
+  ): Promise<void> {
+    issueCounter += 1;
+    const issueId = `form-${issueCounter}`;
+    let screenshotFile: string | undefined;
+
+    if (screenshotsDir) {
+      screenshotFile = await captureIssueScreenshot(
+        activePage,
+        highlightSelector,
+        issueId,
+        screenshotsDir
+      );
+    }
+
+    issues.push({ ...partial, id: issueId, screenshotFile });
+  }
 
   let browser = null;
   try {
@@ -66,17 +96,21 @@ export async function testForms(pages: Array<{ url: string }>): Promise<FormIssu
           const formSelector = form.selector;
 
           if (form.inputCount === 0) {
-            issues.push({
-              page: url,
-              formSelector,
-              issueType: 'Empty Form',
-              description: `Form "${formSelector}" contains no input elements at all.`,
-              impact:
-                'A form with no inputs serves no purpose and may indicate a rendering error or missing markup. Users who interact with it will be confused or unable to complete the intended action.',
-              recommendation:
-                'Add the appropriate input fields, or remove the <form> element if it is no longer needed. Verify the page renders correctly in all target browsers.',
-              severity: 'Low',
-            });
+            await pushFormIssue(
+              {
+                page: url,
+                formSelector,
+                issueType: 'Empty Form',
+                description: `Form "${formSelector}" contains no input elements at all.`,
+                impact:
+                  'A form with no inputs serves no purpose and may indicate a rendering error or missing markup. Users who interact with it will be confused or unable to complete the intended action.',
+                recommendation:
+                  'Add the appropriate input fields, or remove the <form> element if it is no longer needed. Verify the page renders correctly in all target browsers.',
+                severity: 'Low',
+              },
+              page,
+              formSelector
+            );
             continue;
           }
 
@@ -104,17 +138,21 @@ export async function testForms(pages: Array<{ url: string }>): Promise<FormIssu
               }, formSelector);
 
               if (form.hasRequiredFields && !hasValidationMessage) {
-                issues.push({
-                  page: url,
-                  formSelector,
-                  issueType: 'Missing Validation on Empty Submit',
-                  description: `Form "${formSelector}" has required fields but does not display browser-native or custom validation messages when submitted empty.`,
-                  impact:
-                    'Users who submit the form without filling required fields receive no feedback. This leads to silent failures, frustrating UX, and potential data integrity issues on the server if server-side validation is also absent.',
-                  recommendation:
-                    'Add the required attribute to mandatory inputs so browsers show built-in validation messages, or implement a custom validation handler in JavaScript that prevents submission and shows clear, inline error messages next to each empty required field.',
-                  severity: 'Medium',
-                });
+                await pushFormIssue(
+                  {
+                    page: url,
+                    formSelector,
+                    issueType: 'Missing Validation on Empty Submit',
+                    description: `Form "${formSelector}" has required fields but does not display browser-native or custom validation messages when submitted empty.`,
+                    impact:
+                      'Users who submit the form without filling required fields receive no feedback. This leads to silent failures, frustrating UX, and potential data integrity issues on the server if server-side validation is also absent.',
+                    recommendation:
+                      'Add the required attribute to mandatory inputs so browsers show built-in validation messages, or implement a custom validation handler in JavaScript that prevents submission and shows clear, inline error messages next to each empty required field.',
+                    severity: 'Medium',
+                  },
+                  emptyPage,
+                  formSelector
+                );
               }
             }
           } catch {
@@ -125,17 +163,21 @@ export async function testForms(pages: Array<{ url: string }>): Promise<FormIssu
 
           // Test 2: No required fields marked
           if (!form.hasRequiredFields && form.inputCount > 1) {
-            issues.push({
-              page: url,
-              formSelector,
-              issueType: 'No Required Fields Marked',
-              description: `Form "${formSelector}" has ${form.inputCount} input fields but none are marked as required.`,
-              impact:
-                'Without required-field marking, users have no visual indication of which fields must be filled. This increases form abandonment and the likelihood of incomplete submissions reaching the server.',
-              recommendation:
-                'Add the required attribute to all mandatory inputs. Additionally, visually indicate required fields with an asterisk (*) and a legend explaining the symbol (e.g., "* Required field").',
-              severity: 'Low',
-            });
+            await pushFormIssue(
+              {
+                page: url,
+                formSelector,
+                issueType: 'No Required Fields Marked',
+                description: `Form "${formSelector}" has ${form.inputCount} input fields but none are marked as required.`,
+                impact:
+                  'Without required-field marking, users have no visual indication of which fields must be filled. This increases form abandonment and the likelihood of incomplete submissions reaching the server.',
+                recommendation:
+                  'Add the required attribute to all mandatory inputs. Additionally, visually indicate required fields with an asterisk (*) and a legend explaining the symbol (e.g., "* Required field").',
+                severity: 'Low',
+              },
+              page,
+              formSelector
+            );
           }
 
           // Test 3: SQL injection in text inputs
@@ -149,33 +191,41 @@ export async function testForms(pages: Array<{ url: string }>): Promise<FormIssu
                 await input.fill(SQL_INJECTION_STRINGS[0]);
                 const value = await input.inputValue();
                 if (value === SQL_INJECTION_STRINGS[0]) {
-                  issues.push({
-                    page: url,
-                    formSelector,
-                    issueType: 'No Input Sanitization (SQL Injection)',
-                    description: `Text input "${testSelector}" in form "${formSelector}" accepted the SQL injection string "${SQL_INJECTION_STRINGS[0]}" without any client-side sanitization or rejection.`,
-                    impact:
-                      'If this input is passed unsanitised to a database query, an attacker can manipulate the query to read, modify, or delete arbitrary data — including user credentials and private records. SQL injection is consistently ranked #1 in the OWASP Top 10 web vulnerabilities.',
-                    recommendation:
-                      'Never construct SQL queries by concatenating user input. Use parameterised queries or prepared statements in all server-side database calls. On the client side, validate and reject obviously malicious patterns. Consider a Web Application Firewall (WAF) as an additional layer.',
-                    severity: 'High',
-                  });
+                  await pushFormIssue(
+                    {
+                      page: url,
+                      formSelector,
+                      issueType: 'No Input Sanitization (SQL Injection)',
+                      description: `Text input "${testSelector}" in form "${formSelector}" accepted the SQL injection string "${SQL_INJECTION_STRINGS[0]}" without any client-side sanitization or rejection.`,
+                      impact:
+                        'If this input is passed unsanitised to a database query, an attacker can manipulate the query to read, modify, or delete arbitrary data — including user credentials and private records. SQL injection is consistently ranked #1 in the OWASP Top 10 web vulnerabilities.',
+                      recommendation:
+                        'Never construct SQL queries by concatenating user input. Use parameterised queries or prepared statements in all server-side database calls. On the client side, validate and reject obviously malicious patterns. Consider a Web Application Firewall (WAF) as an additional layer.',
+                      severity: 'High',
+                    },
+                    sqlPage,
+                    testSelector
+                  );
                 }
 
                 await input.fill(XSS_STRINGS[0]);
                 const xssValue = await input.inputValue();
                 if (xssValue === XSS_STRINGS[0]) {
-                  issues.push({
-                    page: url,
-                    formSelector,
-                    issueType: 'No Input Sanitization (XSS)',
-                    description: `Text input "${testSelector}" in form "${formSelector}" accepted a cross-site scripting (XSS) payload ("${XSS_STRINGS[0].substring(0, 40)}…") without sanitization.`,
-                    impact:
-                      'If this input is reflected back in the page HTML without escaping, an attacker can inject scripts that steal session cookies, redirect users to malicious sites, or perform actions on behalf of the victim. Stored XSS can affect every subsequent visitor who views the content.',
-                    recommendation:
-                      'Escape all user-supplied content before rendering it as HTML (use textContent instead of innerHTML, or a templating library that auto-escapes). Apply a strict Content-Security-Policy (CSP) header. Consider a sanitisation library like DOMPurify for any HTML you must render dynamically.',
-                    severity: 'High',
-                  });
+                  await pushFormIssue(
+                    {
+                      page: url,
+                      formSelector,
+                      issueType: 'No Input Sanitization (XSS)',
+                      description: `Text input "${testSelector}" in form "${formSelector}" accepted a cross-site scripting (XSS) payload ("${XSS_STRINGS[0].substring(0, 40)}…") without sanitization.`,
+                      impact:
+                        'If this input is reflected back in the page HTML without escaping, an attacker can inject scripts that steal session cookies, redirect users to malicious sites, or perform actions on behalf of the victim. Stored XSS can affect every subsequent visitor who views the content.',
+                      recommendation:
+                        'Escape all user-supplied content before rendering it as HTML (use textContent instead of innerHTML, or a templating library that auto-escapes). Apply a strict Content-Security-Policy (CSP) header. Consider a sanitisation library like DOMPurify for any HTML you must render dynamically.',
+                      severity: 'High',
+                    },
+                    sqlPage,
+                    testSelector
+                  );
                 }
               }
             } catch {
@@ -201,17 +251,21 @@ export async function testForms(pages: Array<{ url: string }>): Promise<FormIssu
                   (el: HTMLInputElement) => !el.validity.valid
                 );
                 if (!isInvalid) {
-                  issues.push({
-                    page: url,
-                    formSelector,
-                    issueType: 'Weak Email Validation',
-                    description: `The email input in form "${formSelector}" accepted "notanemail" (a string with no @ or domain) without showing a validation error.`,
-                    impact:
-                      'Accepting invalid email addresses results in undeliverable confirmation or password-reset emails, degraded data quality, and frustrated users who may not realise they mistyped their address.',
-                    recommendation:
-                      'Use <input type="email"> (which enables built-in browser validation) and supplement it with server-side email format validation using a proper regex or library. Consider sending a verification email to confirm ownership.',
-                    severity: 'Medium',
-                  });
+                  await pushFormIssue(
+                    {
+                      page: url,
+                      formSelector,
+                      issueType: 'Weak Email Validation',
+                      description: `The email input in form "${formSelector}" accepted "notanemail" (a string with no @ or domain) without showing a validation error.`,
+                      impact:
+                        'Accepting invalid email addresses results in undeliverable confirmation or password-reset emails, degraded data quality, and frustrated users who may not realise they mistyped their address.',
+                      recommendation:
+                        'Use <input type="email"> (which enables built-in browser validation) and supplement it with server-side email format validation using a proper regex or library. Consider sending a verification email to confirm ownership.',
+                      severity: 'Medium',
+                    },
+                    emailPage,
+                    `${formSelector} input[type="email"]`
+                  );
                 }
               }
             } catch {
@@ -231,17 +285,21 @@ export async function testForms(pages: Array<{ url: string }>): Promise<FormIssu
                 await pwInput.fill('123');
                 const minLength = await pwInput.evaluate((el: HTMLInputElement) => el.minLength);
                 if (minLength <= 0) {
-                  issues.push({
-                    page: url,
-                    formSelector,
-                    issueType: 'Weak Password Policy',
-                    description: `The password field in form "${formSelector}" has no minlength attribute and accepted the trivially weak password "123".`,
-                    impact:
-                      'Allowing short or simple passwords makes accounts trivially susceptible to brute-force and credential-stuffing attacks. A compromised account can lead to data breaches, financial loss, and loss of user trust.',
-                    recommendation:
-                      'Enforce a minimum password length of at least 8 characters (12+ recommended) using the minlength attribute on the input and server-side validation. Consider integrating a password-strength meter and rejecting passwords that appear in common breach lists (Have I Been Pwned API).',
-                    severity: 'High',
-                  });
+                  await pushFormIssue(
+                    {
+                      page: url,
+                      formSelector,
+                      issueType: 'Weak Password Policy',
+                      description: `The password field in form "${formSelector}" has no minlength attribute and accepted the trivially weak password "123".`,
+                      impact:
+                        'Allowing short or simple passwords makes accounts trivially susceptible to brute-force and credential-stuffing attacks. A compromised account can lead to data breaches, financial loss, and loss of user trust.',
+                      recommendation:
+                        'Enforce a minimum password length of at least 8 characters (12+ recommended) using the minlength attribute on the input and server-side validation. Consider integrating a password-strength meter and rejecting passwords that appear in common breach lists (Have I Been Pwned API).',
+                      severity: 'High',
+                    },
+                    pwPage,
+                    `${formSelector} input[type="password"]`
+                  );
                 }
               }
             } catch {

@@ -85,7 +85,7 @@ export async function runScan(job: ScanJob): Promise<void> {
     job.currentStep = 'UI Inspection';
 
     const pagesToInspect = pages.slice(0, Math.min(pages.length, 10));
-    let uiIssues = await inspectUI(pagesToInspect);
+    let uiIssues = await inspectUI(pagesToInspect, screenshotsDir);
 
     setStepStatus(job, 'ui', 'completed');
     job.progress = 70;
@@ -97,7 +97,10 @@ export async function runScan(job: ScanJob): Promise<void> {
     job.currentStep = 'Form Testing';
 
     const pagesWithForms = pagesToInspect.filter((p) => (p.formsFound || 0) > 0);
-    let formIssues = await testForms(pagesWithForms.length > 0 ? pagesWithForms : pagesToInspect.slice(0, 5));
+    let formIssues = await testForms(
+      pagesWithForms.length > 0 ? pagesWithForms : pagesToInspect.slice(0, 5),
+      screenshotsDir
+    );
 
     setStepStatus(job, 'forms', 'completed');
     job.progress = 85;

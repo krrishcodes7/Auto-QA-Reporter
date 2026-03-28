@@ -70,8 +70,6 @@ export interface BrokenLink {
   statusCode: number;
   statusType: string;
   error?: string;
-  impact?: string;
-  recommendation?: string;
   aiCategory?: string;
   aiConfidence?: number;
 }
@@ -86,13 +84,13 @@ export const UIIssueSeverity = {
 } as const;
 
 export interface UIIssue {
+  id?: string;
   page: string;
   severity: UIIssueSeverity;
   issueType: string;
   description: string;
-  impact?: string;
-  recommendation?: string;
   selector?: string;
+  screenshotFile?: string;
   aiCategory?: string;
   aiConfidence?: number;
 }
@@ -107,13 +105,13 @@ export const FormIssueSeverity = {
 } as const;
 
 export interface FormIssue {
+  id?: string;
   page: string;
   formSelector: string;
   issueType: string;
   description: string;
-  impact?: string;
-  recommendation?: string;
   severity: FormIssueSeverity;
+  screenshotFile?: string;
   aiCategory?: string;
   aiConfidence?: number;
 }

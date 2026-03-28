@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronDown, ChevronUp, AlertCircle, CheckCircle2, ExternalLink, Filter, Lightbulb, AlertTriangle, Wrench, Tag } from "lucide-react";
+import { ChevronDown, ChevronUp, AlertCircle, CheckCircle2, ExternalLink, Filter, Lightbulb, AlertTriangle, Wrench, Tag, Camera } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -180,6 +180,22 @@ export function BugReportTable({ report }: BugReportTableProps) {
                         <span className="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-400">How to fix</span>
                       </div>
                       <p className="text-sm leading-relaxed text-emerald-900 dark:text-emerald-200">{issue.recommendation}</p>
+                    </div>
+                  )}
+
+                  {/* Highlighted element screenshot */}
+                  {issue.details.screenshotFile && (
+                    <div className="rounded-md border bg-background p-4 space-y-2">
+                      <div className="flex items-center gap-1.5">
+                        <Camera className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Element Screenshot</span>
+                      </div>
+                      <img
+                        src={`/api/screenshots/${encodeURIComponent(issue.details.screenshotFile)}`}
+                        alt={`Highlighted element for: ${issue.issueType}`}
+                        className="rounded border border-border max-w-full max-h-72 object-contain bg-muted"
+                        loading="lazy"
+                      />
                     </div>
                   )}
 

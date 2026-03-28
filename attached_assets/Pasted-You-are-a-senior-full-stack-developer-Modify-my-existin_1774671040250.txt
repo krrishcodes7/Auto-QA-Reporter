@@ -1,0 +1,82 @@
+You are a senior full-stack developer. Modify my existing Auto QA Reporter project (which detects accessibility issues like "Empty Button", "Missing Label", etc.) to implement the following feature:
+
+🎯 Goal:
+For every detected issue, capture a screenshot that highlights ONLY the problematic element with a visible red box, and attach that screenshot to the issue object.
+
+🛠 Requirements:
+
+1. Element Mapping:
+
+* Each detected issue must include a unique selector (CSS selector or XPath) pointing to the problematic element.
+* If not already available, update the detection logic to store a selector for each issue.
+
+2. Highlighting the Element:
+
+* Before taking a screenshot, inject a red highlight around the element using:
+
+  * `outline: 3px solid red`
+  * optional: `outline-offset: 2px`
+* Ensure this is done using `page.evaluate()`.
+
+3. Screenshot Capture:
+
+* Use Playwright (or Puppeteer if already used).
+* Capture either:
+  a) Full-page screenshot with highlighted element
+  OR
+  b) Cropped screenshot using `element.boundingBox()`
+* Save screenshots in `/screenshots` folder with filename format:
+  `issue-{id}.png`
+
+4. Clean-up:
+
+* After screenshot capture, remove the injected highlight styles to avoid affecting further captures.
+
+5. Scroll Handling:
+
+* Ensure the element is scrolled into view before capturing:
+  `element.scrollIntoView({ behavior: "instant", block: "center" })`
+
+6. Issue Object Update:
+
+* Modify the issue JSON structure to include:
+  {
+  id: string,
+  type: string,
+  severity: string,
+  selector: string,
+  screenshot: string (file path)
+  }
+
+7. Robustness:
+
+* Handle cases where:
+
+  * element is not found
+  * element is detached from DOM
+* Skip screenshot but log warning
+
+8. Code Structure:
+
+* Create a reusable function:
+  `async function captureIssueScreenshot(page, selector, issueId)`
+
+9. Optional Enhancement (if easy):
+
+* Add semi-transparent red background to element:
+  `backgroundColor: "rgba(255,0,0,0.1)"`
+
+📦 Output:
+
+* Updated detection logic (with selector support)
+* Screenshot utility function
+* Example usage integrated into issue processing pipeline
+
+⚠️ Constraints:
+
+* Do NOT break existing functionality
+* Keep code clean and modular
+* Use async/await properly
+* Assume Node.js environment
+
+Return only the updated code with proper comments.
