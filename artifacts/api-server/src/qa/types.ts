@@ -1,6 +1,13 @@
 export type ScanStatus = 'pending' | 'running' | 'completed' | 'failed';
 export type StepStatus = 'pending' | 'running' | 'completed' | 'failed';
-export type Severity = 'Low' | 'Medium' | 'High';
+export type Severity = 'Low' | 'Medium' | 'High' | 'Critical';
+
+export interface BoundingBox {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
 
 export interface ScanStep {
   name: string;
@@ -16,6 +23,8 @@ export interface BrokenLink {
   error?: string;
   impact?: string;
   recommendation?: string;
+  owaspCategory?: string;
+  fixSuggestion?: string;
   aiCategory?: string;
   aiConfidence?: number;
 }
@@ -30,6 +39,9 @@ export interface UIIssue {
   recommendation?: string;
   selector?: string;
   screenshotFile?: string;
+  boundingBox?: BoundingBox;
+  owaspCategory?: string;
+  fixSuggestion?: string;
   aiCategory?: string;
   aiConfidence?: number;
 }
@@ -44,10 +56,12 @@ export interface FormIssue {
   recommendation?: string;
   severity: Severity;
   screenshotFile?: string;
+  boundingBox?: BoundingBox;
+  owaspCategory?: string;
+  fixSuggestion?: string;
   aiCategory?: string;
   aiConfidence?: number;
 }
-
 
 export interface PageScanned {
   url: string;
@@ -66,6 +80,7 @@ export interface ScanSummary {
   formIssues: number;
   healthScore: number;
   severityCounts: {
+    critical: number;
     high: number;
     medium: number;
     low: number;

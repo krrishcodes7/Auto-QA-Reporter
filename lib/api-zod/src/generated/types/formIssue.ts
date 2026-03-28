@@ -5,6 +5,7 @@
  * Autonomous QA Inspector API
  * OpenAPI spec version: 0.1.0
  */
+import type { BoundingBox } from "./boundingBox";
 import type { FormIssueSeverity } from "./formIssueSeverity";
 
 export interface FormIssue {
@@ -13,8 +14,13 @@ export interface FormIssue {
   formSelector: string;
   issueType: string;
   description: string;
+  impact?: string;
+  recommendation?: string;
   severity: FormIssueSeverity;
   screenshotFile?: string;
+  boundingBox?: BoundingBox;
+  owaspCategory?: string;
+  fixSuggestion?: string;
   aiCategory?: string;
   aiConfidence?: number;
 }

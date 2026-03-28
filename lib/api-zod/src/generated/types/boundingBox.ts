@@ -6,9 +6,9 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type ScanSummarySeverityCounts = {
-  critical: number;
-  high: number;
-  medium: number;
-  low: number;
-};
+export interface BoundingBox {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}

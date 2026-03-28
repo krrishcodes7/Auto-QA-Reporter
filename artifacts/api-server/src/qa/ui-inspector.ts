@@ -2,6 +2,7 @@ import { chromium } from 'playwright';
 import type { UIIssue, Severity } from './types.js';
 import { playwrightEnv } from './playwright-env.js';
 import { captureIssueScreenshot } from './screenshot-utils.js';
+import type { CaptureResult } from './screenshot-utils.js';
 
 export async function inspectUI(
   pages: Array<{ url: string }>,
@@ -339,10 +340,10 @@ export async function inspectUI(
         for (const rawIssue of pageIssues) {
           issueCounter += 1;
           const issueId = `ui-${issueCounter}`;
-          let screenshotFile: string | undefined;
+          let captureResult: CaptureResult | undefined;
 
           if (screenshotsDir && rawIssue.qaId) {
-            screenshotFile = await captureIssueScreenshot(
+            captureResult = await captureIssueScreenshot(
               page,
               `[data-qa-id="${rawIssue.qaId}"]`,
               issueId,
@@ -359,7 +360,8 @@ export async function inspectUI(
             impact: rawIssue.impact,
             recommendation: rawIssue.recommendation,
             selector: rawIssue.selector,
-            screenshotFile,
+            screenshotFile: captureResult?.filename,
+            boundingBox: captureResult?.boundingBox,
           });
         }
 

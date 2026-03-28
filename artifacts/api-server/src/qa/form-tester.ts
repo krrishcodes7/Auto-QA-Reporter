@@ -2,6 +2,7 @@ import { chromium } from 'playwright';
 import type { FormIssue } from './types.js';
 import { playwrightEnv } from './playwright-env.js';
 import { captureIssueScreenshot } from './screenshot-utils.js';
+import type { CaptureResult } from './screenshot-utils.js';
 
 const SQL_INJECTION_STRINGS = [
   "' OR '1'='1",
@@ -26,16 +27,16 @@ export async function testForms(
    * form element (or a specific child selector) while the provided page is open.
    */
   async function pushFormIssue(
-    partial: Omit<FormIssue, 'id' | 'screenshotFile'>,
+    partial: Omit<FormIssue, 'id' | 'screenshotFile' | 'boundingBox'>,
     activePage: import('playwright').Page,
     highlightSelector: string
   ): Promise<void> {
     issueCounter += 1;
     const issueId = `form-${issueCounter}`;
-    let screenshotFile: string | undefined;
+    let captureResult: CaptureResult | undefined;
 
     if (screenshotsDir) {
-      screenshotFile = await captureIssueScreenshot(
+      captureResult = await captureIssueScreenshot(
         activePage,
         highlightSelector,
         issueId,
@@ -43,7 +44,12 @@ export async function testForms(
       );
     }
 
-    issues.push({ ...partial, id: issueId, screenshotFile });
+    issues.push({
+      ...partial,
+      id: issueId,
+      screenshotFile: captureResult?.filename,
+      boundingBox: captureResult?.boundingBox,
+    });
   }
 
   let browser = null;

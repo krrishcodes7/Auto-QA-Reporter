@@ -13,4 +13,5 @@ export const UIIssueSeverity = {
   Low: "Low",
   Medium: "Medium",
   High: "High",
+  Critical: "Critical",
 } as const;

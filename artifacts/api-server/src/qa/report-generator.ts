@@ -1,6 +1,7 @@
 import type { ScanReport, BrokenLink, UIIssue, FormIssue, PageScanned } from './types.js';
 
 function severityColor(severity: string): string {
+  if (severity === 'Critical') return '#7c3aed';
   if (severity === 'High') return '#ef4444';
   if (severity === 'Medium') return '#f59e0b';
   return '#22c55e';
@@ -39,11 +40,15 @@ export function buildReport(params: {
 
   const allSeverities = [...allIssuesWithSeverity, ...brokenLinksBySeverity];
 
+  const criticalCount = allSeverities.filter((s) => s === 'Critical').length;
   const highCount = allSeverities.filter((s) => s === 'High').length;
   const mediumCount = allSeverities.filter((s) => s === 'Medium').length;
   const lowCount = allSeverities.filter((s) => s === 'Low').length;
 
-  const healthScore = Math.max(0, 100 - highCount * 10 - mediumCount * 4 - lowCount * 1);
+  const healthScore = Math.max(
+    0,
+    100 - criticalCount * 15 - highCount * 10 - mediumCount * 4 - lowCount * 1
+  );
 
   return {
     jobId: params.jobId,
@@ -58,6 +63,7 @@ export function buildReport(params: {
       formIssues: params.formIssues.length,
       healthScore,
       severityCounts: {
+        critical: criticalCount,
         high: highCount,
         medium: mediumCount,
         low: lowCount,
@@ -227,6 +233,7 @@ export function generateHtmlReport(report: ScanReport): string {
 
 <div class="severity-bar">
   <strong style="color:#64748b;text-transform:uppercase;font-size:0.75rem">Severity:</strong>
+  ${(report.summary.severityCounts.critical ?? 0) > 0 ? `<div class="sev-item"><div class="sev-dot" style="background:#7c3aed"></div><span>${report.summary.severityCounts.critical} Critical</span></div>` : ''}
   <div class="sev-item"><div class="sev-dot" style="background:#ef4444"></div><span>${report.summary.severityCounts.high} High</span></div>
   <div class="sev-item"><div class="sev-dot" style="background:#f59e0b"></div><span>${report.summary.severityCounts.medium} Medium</span></div>
   <div class="sev-item"><div class="sev-dot" style="background:#22c55e"></div><span>${report.summary.severityCounts.low} Low</span></div>

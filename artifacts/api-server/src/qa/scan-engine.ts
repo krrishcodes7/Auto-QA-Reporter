@@ -5,6 +5,7 @@ import { checkLinks } from './link-checker.js';
 import { inspectUI } from './ui-inspector.js';
 import { testForms } from './form-tester.js';
 import { classifyBug } from './ai-classifier.js';
+import { mapOwasp } from './owasp-mapper.js';
 import { buildReport } from './report-generator.js';
 import type { ScanJob, ScanReport, ScanStep } from './types.js';
 
@@ -109,41 +110,72 @@ export async function runScan(job: ScanJob): Promise<void> {
     setStepStatus(job, 'report', 'running');
     job.currentStep = 'Generating Report';
 
+    // Apply OWASP mapping and fix suggestions to all issues (always, regardless of AI mode)
+    for (const link of brokenLinks) {
+      const owasp = mapOwasp('Broken Link', link.linkUrl);
+      link.owaspCategory = owasp.owaspCategory;
+      link.fixSuggestion = owasp.fixSuggestion;
+    }
+    for (const issue of uiIssues) {
+      const owasp = mapOwasp(issue.issueType, issue.description);
+      issue.owaspCategory = owasp.owaspCategory;
+      // Override severity if OWASP maps to a higher level (e.g. Critical)
+      const sevRank = { Critical: 4, High: 3, Medium: 2, Low: 1 };
+      if (sevRank[owasp.severity] > sevRank[issue.severity]) {
+        issue.severity = owasp.severity;
+      }
+    }
+    for (const issue of formIssues) {
+      const owasp = mapOwasp(issue.issueType, issue.description);
+      issue.owaspCategory = owasp.owaspCategory;
+      const sevRank = { Critical: 4, High: 3, Medium: 2, Low: 1 };
+      if (sevRank[owasp.severity] > sevRank[issue.severity]) {
+        issue.severity = owasp.severity;
+      }
+    }
+
+    // Run AI or heuristic classification (also populates fixSuggestion)
     if (enableAI) {
       const classifyAll = async () => {
         for (const link of brokenLinks) {
           const result = await classifyBug(link.linkUrl, 'Broken Link', enableAI, openaiApiKey, aiModel);
           link.aiCategory = result.category;
           link.aiConfidence = result.confidence;
+          if (result.fixSuggestion) link.fixSuggestion = result.fixSuggestion;
         }
         for (const issue of uiIssues) {
           const result = await classifyBug(issue.description, issue.issueType, enableAI, openaiApiKey, aiModel);
           issue.aiCategory = result.category;
           issue.aiConfidence = result.confidence;
+          if (result.fixSuggestion) issue.fixSuggestion = result.fixSuggestion;
         }
         for (const issue of formIssues) {
           const result = await classifyBug(issue.description, issue.issueType, enableAI, openaiApiKey, aiModel);
           issue.aiCategory = result.category;
           issue.aiConfidence = result.confidence;
+          if (result.fixSuggestion) issue.fixSuggestion = result.fixSuggestion;
         }
       };
       await classifyAll();
     } else {
-      // Run heuristic classification always
+      // Run heuristic classification always (also generates fix suggestions)
       for (const link of brokenLinks) {
         const result = await classifyBug(link.linkUrl, 'Broken Link', false);
         link.aiCategory = result.category;
         link.aiConfidence = result.confidence;
+        if (result.fixSuggestion) link.fixSuggestion = result.fixSuggestion;
       }
       for (const issue of uiIssues) {
         const result = await classifyBug(issue.description, issue.issueType, false);
         issue.aiCategory = result.category;
         issue.aiConfidence = result.confidence;
+        if (result.fixSuggestion) issue.fixSuggestion = result.fixSuggestion;
       }
       for (const issue of formIssues) {
         const result = await classifyBug(issue.description, issue.issueType, false);
         issue.aiCategory = result.category;
         issue.aiConfidence = result.confidence;
+        if (result.fixSuggestion) issue.fixSuggestion = result.fixSuggestion;
       }
     }
 

@@ -45,18 +45,26 @@ A self-driven web QA system. Enter a URL → it crawls the site, checks links, i
 - **Link checker**: Detects 404s, 5xx errors, timeouts
 - **UI Inspector**: Missing alt text, empty buttons/links, missing labels, heading hierarchy, viewport overflow, overlapping elements
 - **Form tester**: Empty submit validation, SQL injection, XSS input, email validation, password policy
-- **AI classification**: Heuristic (built-in) or OpenAI GPT-4o (optional via env)
-- **Reports**: JSON + self-contained HTML (dark themed), screenshot gallery
+- **AI classification**: Heuristic (built-in) or OpenAI GPT-4o (optional via env) — includes fix suggestions
+- **OWASP mapping**: Every issue tagged with an OWASP Top 10 (2021) category via `owasp-mapper.ts`
+- **Critical severity**: New 4th severity level (above High) for SQL injection, XSS, and similar critical exploits
+- **Bounding boxes**: Screenshots capture element bounding boxes (x/y/width/height) stored on every issue
+- **AI fix suggestions**: Each issue carries a code-level fix suggestion (heuristic or OpenAI-generated)
+- **Reports**: JSON + self-contained HTML (dark themed, includes Critical badge + OWASP bar), screenshot gallery
 - **Live progress**: Polled scan status with animated step indicators
+- **Severity breakdown bar**: SummaryCards shows Critical/High/Medium/Low pill counts
+- **OWASP badge in UI**: Expanded issue rows show OWASP category tag + blue "Suggested Fix" panel
 
 ### Backend QA Engine Files
 - `artifacts/api-server/src/qa/crawler.ts` — Playwright crawler
 - `artifacts/api-server/src/qa/link-checker.ts` — HTTP link validation
-- `artifacts/api-server/src/qa/ui-inspector.ts` — Accessibility & UI checks
-- `artifacts/api-server/src/qa/form-tester.ts` — Form security/validation testing
-- `artifacts/api-server/src/qa/ai-classifier.ts` — Bug classification (heuristic + OpenAI)
-- `artifacts/api-server/src/qa/report-generator.ts` — JSON + HTML report builder
-- `artifacts/api-server/src/qa/scan-engine.ts` — Orchestrates all QA steps
+- `artifacts/api-server/src/qa/ui-inspector.ts` — Accessibility & UI checks (with bounding box capture)
+- `artifacts/api-server/src/qa/form-tester.ts` — Form security/validation testing (with bounding box capture)
+- `artifacts/api-server/src/qa/screenshot-utils.ts` — Screenshot capture returning `{ filename, boundingBox? }`
+- `artifacts/api-server/src/qa/owasp-mapper.ts` — Maps issue types to OWASP Top 10 categories + fix suggestions
+- `artifacts/api-server/src/qa/ai-classifier.ts` — Bug classification (heuristic + OpenAI, includes fixSuggestion)
+- `artifacts/api-server/src/qa/report-generator.ts` — JSON + HTML report builder (Critical severity, OWASP bar)
+- `artifacts/api-server/src/qa/scan-engine.ts` — Orchestrates all QA steps (applies OWASP + severity escalation)
 - `artifacts/api-server/src/routes/scan.ts` — API routes for scan lifecycle
 
 ### API Endpoints

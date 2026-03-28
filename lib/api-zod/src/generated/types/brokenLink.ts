@@ -12,6 +12,10 @@ export interface BrokenLink {
   statusCode: number;
   statusType: string;
   error?: string;
+  impact?: string;
+  recommendation?: string;
+  owaspCategory?: string;
+  fixSuggestion?: string;
   aiCategory?: string;
   aiConfidence?: number;
 }

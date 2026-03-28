@@ -1,6 +1,12 @@
 import path from 'path';
 import type { Page } from 'playwright';
+import type { BoundingBox } from './types.js';
 import { logger } from '../lib/logger.js';
+
+export interface CaptureResult {
+  filename: string;
+  boundingBox?: BoundingBox;
+}
 
 /**
  * Captures a full-page screenshot with a red highlight box drawn at the
@@ -15,14 +21,14 @@ import { logger } from '../lib/logger.js';
  *   6. Remove the overlay div
  *   7. Save to `<screenshotsDir>/<jobId>_issue-<issueId>.png`
  *
- * @returns The filename (not full path), or undefined on failure.
+ * @returns CaptureResult with filename and optional boundingBox, or undefined on failure.
  */
 export async function captureIssueScreenshot(
   page: Page,
   selector: string,
   issueId: string,
   screenshotsDir: string
-): Promise<string | undefined> {
+): Promise<CaptureResult | undefined> {
   const jobId = path.basename(screenshotsDir);
   const filename = `${jobId}_issue-${issueId}.png`;
   const filePath = path.join(screenshotsDir, filename);
@@ -57,8 +63,15 @@ export async function captureIssueScreenshot(
     if (!absBox || absBox.width <= 0 || absBox.height <= 0) {
       // Element has no layout box — take plain full-page screenshot
       await page.screenshot({ path: filePath, fullPage: true });
-      return filename;
+      return { filename };
     }
+
+    const boundingBox: BoundingBox = {
+      x: Math.round(absBox.left),
+      y: Math.round(absBox.top),
+      width: Math.round(absBox.width),
+      height: Math.round(absBox.height),
+    };
 
     // Inject an absolutely-positioned red highlight overlay into the document
     await page.evaluate(
@@ -84,8 +97,6 @@ export async function captureIssueScreenshot(
     );
 
     // Scroll back to the element so it is centered in the viewport
-    // The full-page screenshot still captures everything, but this ensures
-    // the highlighted area is easy to spot when the image is first opened.
     await element.evaluate((el) =>
       el.scrollIntoView({ behavior: 'instant', block: 'center' })
     );
@@ -98,7 +109,7 @@ export async function captureIssueScreenshot(
       document.getElementById(id)?.remove();
     }, OVERLAY_ID);
 
-    return filename;
+    return { filename, boundingBox };
   } catch (err) {
     logger.warn(
       { selector, issueId, err: err instanceof Error ? err.message : String(err) },

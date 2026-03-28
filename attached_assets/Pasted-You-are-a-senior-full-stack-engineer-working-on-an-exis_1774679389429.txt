@@ -1,0 +1,285 @@
+You are a senior full-stack engineer working on an existing monorepo project called **Autonomous QA Inspector**.
+
+Your task is to implement the following 5 features **cleanly, modularly, and without breaking existing functionality**:
+
+---
+
+## 🎯 FEATURES TO IMPLEMENT
+
+1. Per-Issue Screenshot with Red Bounding Box
+2. Click Issue → Highlight in Screenshot (Frontend)
+3. AI Fix Suggestions per Issue
+4. Website Health Score Calculation
+5. OWASP Tagging + Severity Standardization
+
+---
+
+## 🧱 BACKEND CHANGES (Express + Playwright)
+
+### 1. Extend Issue Data Model
+
+Update the issue type across backend + OpenAPI schema:
+
+```ts
+type Issue = {
+  id: string;
+  type: string;
+  category: "UX Bug" | "Accessibility Issue" | "Security Risk" | "Performance Issue" | "Content Error";
+  severity: "Critical" | "High" | "Medium" | "Low";
+  description: string;
+  recommendation: string;
+
+  // NEW FIELDS
+  selector?: string;
+  boundingBox?: { x: number; y: number; width: number; height: number };
+  screenshotPath?: string;
+  owaspCategory?: string;
+  fixSuggestion?: string;
+};
+```
+
+Update OpenAPI spec and regenerate:
+
+* api-client-react
+* api-zod
+
+---
+
+### 2. Capture Element-Level Screenshots (Playwright)
+
+In ui-inspector.ts:
+
+For each detected issue:
+
+1. Extract selector
+2. Use Playwright:
+
+```ts
+const element = await page.locator(selector).first();
+const box = await element.boundingBox();
+```
+
+3. Take screenshot:
+
+```ts
+const screenshot = await page.screenshot({ fullPage: true });
+```
+
+4. Draw red rectangle using sharp or jimp:
+
+* Color: red (#FF0000)
+* Border width: 4px
+
+5. Save:
+
+```
+screenshots/{jobId}/issue-{issueId}.png
+```
+
+6. Attach to issue:
+
+```ts
+issue.boundingBox = box;
+issue.screenshotPath = `issue-${issueId}.png`;
+```
+
+Ensure:
+
+* Skip if element not found
+* No crash on null boundingBox
+
+---
+
+### 3. OWASP Tagging + Severity Mapping
+
+Create a mapping utility:
+
+```ts
+function mapToOWASP(issue): { category, severity } {
+  if (issue.type.includes("SQL") || issue.type.includes("XSS")) {
+    return { owaspCategory: "A03: Injection", severity: "Critical" };
+  }
+  if (issue.type.includes("missing label") || issue.type.includes("alt")) {
+    return { owaspCategory: "A11: Accessibility", severity: "Medium" };
+  }
+  return { owaspCategory: "General", severity: "Low" };
+}
+```
+
+Apply during issue creation.
+
+---
+
+### 4. Health Score Calculation
+
+Add function:
+
+```ts
+function calculateHealthScore(issues: Issue[]): number {
+  let score = 100;
+
+  for (const issue of issues) {
+    if (issue.severity === "Critical") score -= 10;
+    if (issue.severity === "High") score -= 5;
+    if (issue.severity === "Medium") score -= 2;
+    if (issue.severity === "Low") score -= 1;
+  }
+
+  return Math.max(score, 0);
+}
+```
+
+Attach to report.json:
+
+```ts
+report.healthScore = calculateHealthScore(issues);
+```
+
+---
+
+### 5. AI Fix Suggestions
+
+In ai-classifier.ts:
+
+Extend prompt:
+
+"Given this issue, provide a clear fix with code example if applicable."
+
+Store result:
+
+```ts
+issue.fixSuggestion = aiResponse.fix;
+```
+
+Fallback (no API key):
+
+* Generate simple rule-based fix text
+
+---
+
+---
+
+## 🎨 FRONTEND CHANGES (React + Tailwind)
+
+### 6. Update Types (from API)
+
+Regenerate hooks and ensure Issue includes:
+
+* screenshotPath
+* boundingBox
+* fixSuggestion
+* owaspCategory
+
+---
+
+### 7. Click-to-View Screenshot Modal
+
+In BugReportTable:
+
+On row click:
+
+* Open modal
+* Show screenshot
+
+```tsx
+<img src={`/api/screenshots/${issue.screenshotPath}`} />
+```
+
+---
+
+### 8. Draw Bounding Box Overlay
+
+Wrap image in relative container:
+
+```tsx
+<div className="relative">
+  <img ... />
+
+  <div
+    className="absolute border-4 border-red-500"
+    style={{
+      top: issue.boundingBox.y,
+      left: issue.boundingBox.x,
+      width: issue.boundingBox.width,
+      height: issue.boundingBox.height
+    }}
+  />
+</div>
+```
+
+---
+
+### 9. Show Fix Suggestion UI
+
+Below issue details:
+
+```tsx
+<div className="bg-zinc-900 p-3 rounded">
+  <p className="text-sm text-green-400">Suggested Fix:</p>
+  <pre>{issue.fixSuggestion}</pre>
+</div>
+```
+
+---
+
+### 10. Display Health Score
+
+In SummaryCards:
+
+```tsx
+<div>
+  <h2>Health Score</h2>
+  <p className="text-3xl font-bold">{report.healthScore}/100</p>
+</div>
+```
+
+Color:
+
+* Green (80+)
+* Yellow (50–79)
+* Red (<50)
+
+---
+
+### 11. Show OWASP Tags
+
+Add badge:
+
+```tsx
+<span className="text-xs bg-red-800 px-2 py-1 rounded">
+  {issue.owaspCategory}
+</span>
+```
+
+---
+
+---
+
+## ⚙️ SAFETY + EDGE CASES
+
+* Do NOT crash if:
+
+  * selector not found
+  * boundingBox is null
+* Ensure backward compatibility with old reports
+* Lazy-load screenshots to avoid UI lag
+* Use try/catch around Playwright element calls
+
+---
+
+---
+
+## ✅ FINAL EXPECTED OUTCOME
+
+* Each issue has its own screenshot with red highlight
+* Clicking issue shows exact problem visually
+* Each issue has OWASP tag + severity
+* Dashboard shows health score
+* Each issue includes AI-generated fix
+
+---
+
+Write clean, production-ready TypeScript.
+Do not break existing API routes.
+Follow current project structure strictly.
+------------------------------------------

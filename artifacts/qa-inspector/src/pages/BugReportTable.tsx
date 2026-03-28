@@ -12,17 +12,19 @@ interface BugReportTableProps {
 type UnifiedIssue = {
   id: string;
   type: 'Link' | 'UI' | 'Form';
-  severity: 'High' | 'Medium' | 'Low';
+  severity: 'Critical' | 'High' | 'Medium' | 'Low';
   page: string;
   issueType: string;
   description: string;
   impact?: string;
   recommendation?: string;
+  owaspCategory?: string;
+  fixSuggestion?: string;
   aiCategory?: string;
   details: any;
 };
 
-type SeverityFilter = 'All' | 'High' | 'Medium' | 'Low';
+type SeverityFilter = 'All' | 'Critical' | 'High' | 'Medium' | 'Low';
 
 function ScreenshotLightbox({
   src,
@@ -64,46 +66,53 @@ export function BugReportTable({ report }: BugReportTableProps) {
     ...(report.brokenLinks || []).map((link, i) => ({
       id: `link-${i}`,
       type: 'Link' as const,
-      severity: (link.statusCode >= 500 || link.statusCode === 404 ? 'High' : 'Medium') as 'High' | 'Medium' | 'Low',
+      severity: (link.statusCode >= 500 || link.statusCode === 404 ? 'High' : 'Medium') as 'Critical' | 'High' | 'Medium' | 'Low',
       page: link.sourcePage,
       issueType: `Broken Link (${link.statusType})`,
       description: `Link to "${link.linkUrl}" returned HTTP ${link.statusCode || 'N/A'}${link.error ? ` — ${link.error}` : ''}.`,
       impact: link.impact,
       recommendation: link.recommendation,
+      owaspCategory: link.owaspCategory,
+      fixSuggestion: link.fixSuggestion,
       aiCategory: link.aiCategory,
       details: link,
     })),
     ...(report.uiIssues || []).map((ui, i) => ({
       id: `ui-${i}`,
       type: 'UI' as const,
-      severity: ui.severity as 'High' | 'Medium' | 'Low',
+      severity: ui.severity as 'Critical' | 'High' | 'Medium' | 'Low',
       page: ui.page,
       issueType: ui.issueType,
       description: ui.description,
       impact: ui.impact,
       recommendation: ui.recommendation,
+      owaspCategory: ui.owaspCategory,
+      fixSuggestion: ui.fixSuggestion,
       aiCategory: ui.aiCategory,
       details: ui,
     })),
     ...(report.formIssues || []).map((form, i) => ({
       id: `form-${i}`,
       type: 'Form' as const,
-      severity: form.severity as 'High' | 'Medium' | 'Low',
+      severity: form.severity as 'Critical' | 'High' | 'Medium' | 'Low',
       page: form.page,
       issueType: form.issueType,
       description: form.description,
       impact: form.impact,
       recommendation: form.recommendation,
+      owaspCategory: form.owaspCategory,
+      fixSuggestion: form.fixSuggestion,
       aiCategory: form.aiCategory,
       details: form,
     })),
   ].sort((a, b) => {
-    const sevScore = { High: 3, Medium: 2, Low: 1 };
-    return sevScore[b.severity] - sevScore[a.severity];
+    const sevScore: Record<string, number> = { Critical: 4, High: 3, Medium: 2, Low: 1 };
+    return (sevScore[b.severity] ?? 0) - (sevScore[a.severity] ?? 0);
   });
 
   const severityCounts = {
     All: unifiedIssues.length,
+    Critical: unifiedIssues.filter(i => i.severity === 'Critical').length,
     High: unifiedIssues.filter(i => i.severity === 'High').length,
     Medium: unifiedIssues.filter(i => i.severity === 'Medium').length,
     Low: unifiedIssues.filter(i => i.severity === 'Low').length,
@@ -111,6 +120,7 @@ export function BugReportTable({ report }: BugReportTableProps) {
 
   const getSeverityBadge = (sev: string) => {
     switch (sev) {
+      case 'Critical': return <Badge className="bg-purple-700 hover:bg-purple-800 text-white">Critical</Badge>;
       case 'High': return <Badge variant="destructive">High</Badge>;
       case 'Medium': return <Badge variant="secondary" className="bg-warning/20 text-warning hover:bg-warning/30">Medium</Badge>;
       case 'Low': return <Badge variant="secondary">Low</Badge>;
@@ -171,10 +181,15 @@ export function BugReportTable({ report }: BugReportTableProps) {
                       <span className="text-xs font-medium text-muted-foreground">Type:</span>
                       <span className="text-xs font-semibold">{issue.issueType}</span>
                     </div>
+                    {getSeverityBadge(issue.severity)}
                     {issue.aiCategory && (
                       <Badge variant="secondary" className="font-normal text-xs">{issue.aiCategory}</Badge>
                     )}
-                    {getSeverityBadge(issue.severity)}
+                    {issue.owaspCategory && (
+                      <span className="text-xs bg-red-900/60 text-red-200 border border-red-700/50 px-2 py-0.5 rounded font-mono">
+                        {issue.owaspCategory}
+                      </span>
+                    )}
                   </div>
 
                   {/* What was found */}
@@ -216,6 +231,19 @@ export function BugReportTable({ report }: BugReportTableProps) {
                         <span className="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-400">How to fix</span>
                       </div>
                       <p className="text-sm leading-relaxed text-emerald-900 dark:text-emerald-200">{issue.recommendation}</p>
+                    </div>
+                  )}
+
+                  {/* AI / Heuristic Fix Suggestion */}
+                  {issue.fixSuggestion && (
+                    <div className="rounded-md border border-blue-200 dark:border-blue-900 bg-blue-50 dark:bg-blue-950/30 p-4 space-y-1">
+                      <div className="flex items-center gap-1.5 mb-2">
+                        <Lightbulb className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                        <span className="text-xs font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-400">Suggested Fix</span>
+                      </div>
+                      <pre className="text-sm leading-relaxed text-blue-900 dark:text-blue-200 whitespace-pre-wrap break-words font-sans">
+                        {issue.fixSuggestion}
+                      </pre>
                     </div>
                   )}
 
@@ -303,7 +331,7 @@ export function BugReportTable({ report }: BugReportTableProps) {
         <div className="flex items-center gap-2">
           <Filter className="w-4 h-4 text-muted-foreground" />
           <span className="text-sm text-muted-foreground mr-1">Severity:</span>
-          {(['All', 'High', 'Medium', 'Low'] as SeverityFilter[]).map((sev) => (
+          {(['All', 'Critical', 'High', 'Medium', 'Low'] as SeverityFilter[]).map((sev) => (
             <Button
               key={sev}
               variant={severityFilter === sev ? 'default' : 'outline'}

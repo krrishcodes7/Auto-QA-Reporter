@@ -64,12 +64,23 @@ export interface ScanStatus {
   completedAt?: string;
 }
 
+export interface BoundingBox {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 export interface BrokenLink {
   sourcePage: string;
   linkUrl: string;
   statusCode: number;
   statusType: string;
   error?: string;
+  impact?: string;
+  recommendation?: string;
+  owaspCategory?: string;
+  fixSuggestion?: string;
   aiCategory?: string;
   aiConfidence?: number;
 }
@@ -81,6 +92,7 @@ export const UIIssueSeverity = {
   Low: "Low",
   Medium: "Medium",
   High: "High",
+  Critical: "Critical",
 } as const;
 
 export interface UIIssue {
@@ -89,8 +101,13 @@ export interface UIIssue {
   severity: UIIssueSeverity;
   issueType: string;
   description: string;
+  impact?: string;
+  recommendation?: string;
   selector?: string;
   screenshotFile?: string;
+  boundingBox?: BoundingBox;
+  owaspCategory?: string;
+  fixSuggestion?: string;
   aiCategory?: string;
   aiConfidence?: number;
 }
@@ -102,6 +119,7 @@ export const FormIssueSeverity = {
   Low: "Low",
   Medium: "Medium",
   High: "High",
+  Critical: "Critical",
 } as const;
 
 export interface FormIssue {
@@ -110,8 +128,13 @@ export interface FormIssue {
   formSelector: string;
   issueType: string;
   description: string;
+  impact?: string;
+  recommendation?: string;
   severity: FormIssueSeverity;
   screenshotFile?: string;
+  boundingBox?: BoundingBox;
+  owaspCategory?: string;
+  fixSuggestion?: string;
   aiCategory?: string;
   aiConfidence?: number;
 }
@@ -127,6 +150,7 @@ export interface PageScanned {
 }
 
 export type ScanSummarySeverityCounts = {
+  critical: number;
   high: number;
   medium: number;
   low: number;
