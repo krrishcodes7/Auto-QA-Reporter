@@ -113,27 +113,69 @@ export async function inspectUI(
           });
 
           // ── Missing Form Labels ───────────────────────────────────────────
+          // Checks: explicit label[for], implicit <label> wrapping, aria-label,
+          // aria-labelledby (resolved), and title attribute.
+          // Placeholder alone is not a valid label (WCAG 1.3.5), but lowers severity.
           document
-            .querySelectorAll('input:not([type="hidden"]):not([type="submit"]):not([type="button"])')
+            .querySelectorAll(
+              'input:not([type="hidden"]):not([type="submit"]):not([type="button"]):not([type="image"]):not([type="reset"])'
+            )
             .forEach((input, i) => {
+              const inputEl = input as HTMLInputElement;
               const id = input.getAttribute('id');
-              const ariaLabel = input.getAttribute('aria-label');
-              const ariaLabelledby = input.getAttribute('aria-labelledby');
-              const hasLabel = id ? document.querySelector(`label[for="${id}"]`) !== null : false;
-              if (!hasLabel && !ariaLabel && !ariaLabelledby) {
-                const type = input.getAttribute('type') || 'text';
-                found.push({
-                  severity: 'High',
-                  issueType: 'Missing Form Label',
-                  description: `Input field ${i + 1} (type="${type}") has no associated <label>, aria-label, or aria-labelledby attribute.`,
-                  impact:
-                    'Screen readers cannot tell users what to type into this field. This is a WCAG 2.1 Level A violation (Success Criterion 1.3.1 and 3.3.2). Unlabelled fields are also harder to tap accurately on mobile because the touch target for the label is missing.',
-                  recommendation:
-                    "Add a <label for=\"inputId\"> element whose for attribute matches the input's id. If a visible label is not desired, use aria-label=\"Field purpose\" on the input itself, or aria-labelledby pointing to an existing descriptive element.",
-                  qaId: stamp(input),
-                  selector: id ? `#${id}` : `input[type="${type}"]`,
-                });
+              const ariaLabel = input.getAttribute('aria-label')?.trim();
+              const ariaLabelledby = input.getAttribute('aria-labelledby')?.trim();
+              const titleAttr = input.getAttribute('title')?.trim();
+              const placeholder = inputEl.placeholder?.trim();
+
+              // Skip if not actually visible on-screen
+              const rect = input.getBoundingClientRect();
+              const style = window.getComputedStyle(input);
+              const isVisible =
+                style.display !== 'none' &&
+                style.visibility !== 'hidden' &&
+                parseFloat(style.opacity || '1') > 0 &&
+                rect.width > 0 &&
+                rect.height > 0;
+              if (!isVisible) return;
+
+              // Explicit label via for="id"
+              const hasExplicitLabel = id
+                ? document.querySelector(`label[for="${id}"]`) !== null
+                : false;
+              // Implicit label: input is a child of a <label>
+              const hasImplicitLabel = input.closest('label') !== null;
+              // aria-labelledby resolves to at least one real element
+              const hasResolvedLabelledby = ariaLabelledby
+                ? ariaLabelledby.split(/\s+/).some((refId) => !!document.getElementById(refId))
+                : false;
+
+              if (
+                hasExplicitLabel ||
+                hasImplicitLabel ||
+                ariaLabel ||
+                hasResolvedLabelledby ||
+                titleAttr
+              ) {
+                return; // properly labeled
               }
+
+              const type = input.getAttribute('type') || 'text';
+              const severity = placeholder ? 'Medium' : 'High';
+              const placeholderNote = placeholder
+                ? ` (has placeholder "${placeholder.substring(0, 40)}" — placeholder is not a substitute for a label)`
+                : '';
+              found.push({
+                severity,
+                issueType: 'Missing Form Label',
+                description: `Input field ${i + 1} (type="${type}") has no associated <label>, aria-label, aria-labelledby, or title attribute${placeholderNote}.`,
+                impact:
+                  'Screen readers cannot tell users what to type into this field. This is a WCAG 2.1 Level A violation (Success Criterion 1.3.1 and 3.3.2). Unlabelled fields are also harder to tap accurately on mobile because the touch target for the label is missing.',
+                recommendation:
+                  "Add a <label for=\"inputId\"> element whose for attribute matches the input's id. If a visible label is not desired, use aria-label=\"Field purpose\" on the input itself, or aria-labelledby pointing to an existing descriptive element. Note: placeholder text is not a valid replacement for a label.",
+                qaId: stamp(input),
+                selector: id ? `#${id}` : `input[type="${type}"]`,
+              });
             });
 
           // ── Heading Hierarchy Skip ────────────────────────────────────────
@@ -205,21 +247,68 @@ export async function inspectUI(
           }
 
           // ── Overlapping Interactive Elements ──────────────────────────────
+          // Detects two independently-positioned clickable elements whose bounding
+          // boxes overlap by a meaningful area (>15% of the smaller element).
+          // Excluded: parent-child pairs, off-screen elements, invisible elements.
           const overlappingResult = (() => {
-            const allEls = document.querySelectorAll('button, a, input, select, textarea');
+            const vw = document.documentElement.clientWidth;
+            const vh = document.documentElement.clientHeight;
+
+            const allEls = Array.from(document.querySelectorAll('button, a, input, select, textarea'));
             const rects: Array<{ el: Element; rect: DOMRect }> = [];
-            allEls.forEach((el) => {
+
+            for (const el of allEls) {
               const rect = el.getBoundingClientRect();
-              if (rect.width > 0 && rect.height > 0) rects.push({ el, rect });
-            });
-            for (let i = 0; i < rects.length && i < 50; i++) {
-              for (let j = i + 1; j < rects.length && j < 50; j++) {
+              const style = window.getComputedStyle(el);
+              // Must be visible and within the current viewport
+              if (
+                rect.width <= 0 ||
+                rect.height <= 0 ||
+                style.display === 'none' ||
+                style.visibility === 'hidden' ||
+                parseFloat(style.opacity || '1') === 0 ||
+                rect.right < 0 ||
+                rect.bottom < 0 ||
+                rect.left > vw ||
+                rect.top > vh
+              ) {
+                continue;
+              }
+              rects.push({ el, rect });
+            }
+
+            for (let i = 0; i < rects.length && i < 80; i++) {
+              for (let j = i + 1; j < rects.length && j < 80; j++) {
                 const a = rects[i].rect;
                 const b = rects[j].rect;
-                const overlap = !(a.right < b.left || a.left > b.right || a.bottom < b.top || a.top > b.bottom);
-                if (overlap) {
-                  return { tag: `${rects[i].el.tagName.toLowerCase()} and ${rects[j].el.tagName.toLowerCase()}`, el: rects[i].el };
-                }
+                const elA = rects[i].el;
+                const elB = rects[j].el;
+
+                // Skip parent-child relationships
+                if (elA.contains(elB) || elB.contains(elA)) continue;
+
+                // Calculate intersection rectangle
+                const ix1 = Math.max(a.left, b.left);
+                const iy1 = Math.max(a.top, b.top);
+                const ix2 = Math.min(a.right, b.right);
+                const iy2 = Math.min(a.bottom, b.bottom);
+
+                if (ix2 <= ix1 || iy2 <= iy1) continue; // no intersection
+
+                const intersectionArea = (ix2 - ix1) * (iy2 - iy1);
+                const areaA = a.width * a.height;
+                const areaB = b.width * b.height;
+                const smallerArea = Math.min(areaA, areaB);
+
+                // Require meaningful overlap: at least 15% of the smaller element
+                if (intersectionArea / smallerArea < 0.15) continue;
+
+                return {
+                  tag: `${elA.tagName.toLowerCase()} and ${elB.tagName.toLowerCase()}`,
+                  el: elA,
+                  overlapPx: Math.round(intersectionArea),
+                  overlapPct: Math.round((intersectionArea / smallerArea) * 100),
+                };
               }
             }
             return null;
@@ -229,7 +318,7 @@ export async function inspectUI(
             found.push({
               severity: 'High',
               issueType: 'Overlapping Interactive Elements',
-              description: `Two interactive elements overlap each other in the viewport: ${overlappingResult.tag}. This was detected at 1280×800 resolution.`,
+              description: `Two interactive elements genuinely overlap: ${overlappingResult.tag}. Intersection area: ~${overlappingResult.overlapPx}px² (${overlappingResult.overlapPct}% of the smaller element). Detected at 1280×800 resolution.`,
               impact:
                 'When clickable elements overlap, users may accidentally trigger the wrong action. On touchscreens the problem is amplified because touch targets are imprecise. This also breaks keyboard tab order, causing confusion for keyboard-only users.',
               recommendation:
