@@ -26,6 +26,10 @@ author = "agent"
 task = "workflow.run"
 args = "API Server"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "QA Inspector"
+
 [[workflows.workflow]]
 name = "API Server"
 author = "agent"
@@ -35,8 +39,20 @@ outputType = "console"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "PLAYWRIGHT_BROWSERS_PATH=/home/runner/workspace/.cache/ms-playwright PORT=8080 pnpm --filter @workspace/api-server run start"
+args = "pnpm install && pnpm --filter @workspace/api-server run build && PLAYWRIGHT_BROWSERS_PATH=/home/runner/workspace/.cache/ms-playwright PORT=8080 pnpm --filter @workspace/api-server run start"
 waitForPort = 8080
+
+[[workflows.workflow]]
+name = "QA Inspector"
+author = "agent"
+
+[workflows.workflow.metadata]
+outputType = "webview"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "PORT=18700 BASE_PATH=/ pnpm --filter @workspace/qa-inspector run dev"
+waitForPort = 18700
 
 [agent]
 stack = "PNPM_WORKSPACE"
