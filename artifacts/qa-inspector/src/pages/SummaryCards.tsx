@@ -19,6 +19,7 @@ function HealthScoreRing({ score }: { score: number }) {
 }
 
 export function SummaryCards({ summary, totalPages }: SummaryCardsProps) {
+  if (!summary) return null;
   const healthScore = summary.healthScore ?? 100;
 
   const cards = [
