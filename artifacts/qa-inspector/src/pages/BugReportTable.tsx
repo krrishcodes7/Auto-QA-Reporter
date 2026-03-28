@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronDown, ChevronUp, AlertCircle, CheckCircle2, ExternalLink, Filter, Lightbulb, AlertTriangle, Wrench, Tag, Camera } from "lucide-react";
+import { ChevronDown, ChevronUp, AlertCircle, CheckCircle2, ExternalLink, Filter, Lightbulb, AlertTriangle, Wrench, Tag, Camera, X, Maximize2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -24,9 +24,41 @@ type UnifiedIssue = {
 
 type SeverityFilter = 'All' | 'High' | 'Medium' | 'Low';
 
+function ScreenshotLightbox({
+  src,
+  alt,
+  onClose,
+}: {
+  src: string;
+  alt: string;
+  onClose: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <button
+        className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+        onClick={onClose}
+        aria-label="Close fullscreen"
+      >
+        <X className="w-6 h-6" />
+      </button>
+      <img
+        src={src}
+        alt={alt}
+        className="max-w-[95vw] max-h-[92vh] object-contain rounded shadow-2xl border border-white/10"
+        onClick={(e) => e.stopPropagation()}
+      />
+    </div>
+  );
+}
+
 export function BugReportTable({ report }: BugReportTableProps) {
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [severityFilter, setSeverityFilter] = useState<SeverityFilter>('All');
+  const [lightboxSrc, setLightboxSrc] = useState<{ src: string; alt: string } | null>(null);
 
   const unifiedIssues: UnifiedIssue[] = [
     ...(report.brokenLinks || []).map((link, i) => ({
@@ -84,6 +116,10 @@ export function BugReportTable({ report }: BugReportTableProps) {
       case 'Low': return <Badge variant="secondary">Low</Badge>;
       default: return <Badge variant="outline">{sev}</Badge>;
     }
+  };
+
+  const openLightbox = (src: string, alt: string) => {
+    setLightboxSrc({ src, alt });
   };
 
   const renderTable = (issues: UnifiedIssue[]) => {
@@ -183,19 +219,46 @@ export function BugReportTable({ report }: BugReportTableProps) {
                     </div>
                   )}
 
-                  {/* Highlighted element screenshot */}
+                  {/* Full-page highlighted screenshot */}
                   {issue.details.screenshotFile && (
                     <div className="rounded-md border bg-background p-4 space-y-2">
-                      <div className="flex items-center gap-1.5">
-                        <Camera className="w-4 h-4 text-muted-foreground" />
-                        <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Element Screenshot</span>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                          <Camera className="w-4 h-4 text-muted-foreground" />
+                          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Page Screenshot</span>
+                          <span className="text-xs text-muted-foreground">(red box marks the issue)</span>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-2 text-xs gap-1"
+                          onClick={() =>
+                            openLightbox(
+                              `/api/screenshots/${encodeURIComponent(issue.details.screenshotFile)}`,
+                              `Full page screenshot for: ${issue.issueType}`
+                            )
+                          }
+                        >
+                          <Maximize2 className="w-3.5 h-3.5" />
+                          Fullscreen
+                        </Button>
                       </div>
-                      <img
-                        src={`/api/screenshots/${encodeURIComponent(issue.details.screenshotFile)}`}
-                        alt={`Highlighted element for: ${issue.issueType}`}
-                        className="rounded border border-border max-w-full max-h-72 object-contain bg-muted"
-                        loading="lazy"
-                      />
+                      <div
+                        className="cursor-zoom-in"
+                        onClick={() =>
+                          openLightbox(
+                            `/api/screenshots/${encodeURIComponent(issue.details.screenshotFile)}`,
+                            `Full page screenshot for: ${issue.issueType}`
+                          )
+                        }
+                      >
+                        <img
+                          src={`/api/screenshots/${encodeURIComponent(issue.details.screenshotFile)}`}
+                          alt={`Full page screenshot for: ${issue.issueType}`}
+                          className="rounded border border-border w-full max-h-80 object-cover object-top bg-muted hover:opacity-90 transition-opacity"
+                          loading="lazy"
+                        />
+                      </div>
                     </div>
                   )}
 
@@ -222,6 +285,15 @@ export function BugReportTable({ report }: BugReportTableProps) {
 
   return (
     <div className="mt-12">
+      {/* Fullscreen lightbox overlay */}
+      {lightboxSrc && (
+        <ScreenshotLightbox
+          src={lightboxSrc.src}
+          alt={lightboxSrc.alt}
+          onClose={() => setLightboxSrc(null)}
+        />
+      )}
+
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div className="flex items-center gap-2">
           <AlertCircle className="w-5 h-5" />

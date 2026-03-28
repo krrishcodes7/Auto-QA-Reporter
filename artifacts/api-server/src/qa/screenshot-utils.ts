@@ -3,18 +3,17 @@ import type { Page } from 'playwright';
 import { logger } from '../lib/logger.js';
 
 /**
- * Captures a screenshot of a specific element, highlighted with a red outline.
+ * Captures a full-page screenshot with a red highlight box drawn at the
+ * element's absolute position in the document.
  *
  * Workflow:
  *   1. Locate the element via `selector`
- *   2. Scroll it into view
- *   3. Inject a red outline + semi-transparent red background via page.evaluate()
- *   4. Take either a cropped element screenshot (preferred) or full-page fallback
- *   5. Remove the injected styles
- *   6. Save to `<screenshotsDir>/<jobId>_issue-<issueId>.png`
- *
- * The filename is prefixed with the jobId (the base name of screenshotsDir) so the
- * existing `/api/screenshots/:filename` endpoint can resolve the correct subdirectory.
+ *   2. Scroll it into view so getBoundingClientRect() is accurate
+ *   3. Compute the element's absolute page coordinates (rect + scrollOffset)
+ *   4. Inject a position:absolute overlay div at those coordinates with a red border
+ *   5. Take a full-page screenshot (captures the entire scrollable document)
+ *   6. Remove the overlay div
+ *   7. Save to `<screenshotsDir>/<jobId>_issue-<issueId>.png`
  *
  * @returns The filename (not full path), or undefined on failure.
  */
@@ -24,66 +23,80 @@ export async function captureIssueScreenshot(
   issueId: string,
   screenshotsDir: string
 ): Promise<string | undefined> {
-  // Derive jobId from the directory name so the serving endpoint can locate the file
   const jobId = path.basename(screenshotsDir);
   const filename = `${jobId}_issue-${issueId}.png`;
   const filePath = path.join(screenshotsDir, filename);
 
+  const OVERLAY_ID = `qa-overlay-${issueId.replace(/[^a-z0-9]/gi, '-')}`;
+
   try {
-    // Locate element — skip if not found
     const element = await page.$(selector);
     if (!element) {
       logger.warn({ selector, issueId }, 'captureIssueScreenshot: element not found, skipping');
       return undefined;
     }
 
-    // Scroll element into view so it is visible in the viewport
+    // Scroll into view so the element has a valid bounding rect
     await element.evaluate((el) =>
       el.scrollIntoView({ behavior: 'instant', block: 'center' })
     );
 
-    // Inject highlight styles — red outline + faint red background
-    await page.evaluate((sel) => {
+    // Get absolute document coordinates of the element
+    const absBox = await page.evaluate((sel) => {
       const el = document.querySelector(sel);
-      if (!el) return;
-      (el as HTMLElement).dataset['qaHighlight'] = 'true';
-      (el as HTMLElement).style.setProperty('outline', '3px solid red', 'important');
-      (el as HTMLElement).style.setProperty('outline-offset', '2px', 'important');
-      (el as HTMLElement).style.setProperty(
-        'background-color',
-        'rgba(255, 0, 0, 0.1)',
-        'important'
-      );
+      if (!el) return null;
+      const rect = el.getBoundingClientRect();
+      return {
+        top: rect.top + window.scrollY,
+        left: rect.left + window.scrollX,
+        width: rect.width,
+        height: rect.height,
+      };
     }, selector);
 
-    // Prefer a cropped element screenshot; fall back to full-page if bounding box unavailable
-    const box = await element.boundingBox();
-    if (box && box.width > 0 && box.height > 0) {
-      // Add a small padding around the element for context
-      const padding = 16;
-      await page.screenshot({
-        path: filePath,
-        clip: {
-          x: Math.max(0, box.x - padding),
-          y: Math.max(0, box.y - padding),
-          width: box.width + padding * 2,
-          height: box.height + padding * 2,
-        },
-      });
-    } else {
-      // Element has no layout box (e.g., <head>) — take a full-page screenshot instead
+    if (!absBox || absBox.width <= 0 || absBox.height <= 0) {
+      // Element has no layout box — take plain full-page screenshot
       await page.screenshot({ path: filePath, fullPage: true });
+      return filename;
     }
 
-    // Clean up injected highlight styles so subsequent captures are not affected
-    await page.evaluate((sel) => {
-      const el = document.querySelector(sel);
-      if (!el) return;
-      delete (el as HTMLElement).dataset['qaHighlight'];
-      (el as HTMLElement).style.removeProperty('outline');
-      (el as HTMLElement).style.removeProperty('outline-offset');
-      (el as HTMLElement).style.removeProperty('background-color');
-    }, selector);
+    // Inject an absolutely-positioned red highlight overlay into the document
+    await page.evaluate(
+      ({ box, id }) => {
+        const div = document.createElement('div');
+        div.id = id;
+        div.style.cssText = [
+          'position: absolute',
+          `top: ${box.top}px`,
+          `left: ${box.left}px`,
+          `width: ${box.width}px`,
+          `height: ${box.height}px`,
+          'border: 3px solid red',
+          'background: rgba(255, 0, 0, 0.12)',
+          'box-shadow: 0 0 0 3px rgba(255,0,0,0.35)',
+          'pointer-events: none',
+          'z-index: 2147483647',
+          'box-sizing: border-box',
+        ].join('; ');
+        document.body.appendChild(div);
+      },
+      { box: absBox, id: OVERLAY_ID }
+    );
+
+    // Scroll back to the element so it is centered in the viewport
+    // The full-page screenshot still captures everything, but this ensures
+    // the highlighted area is easy to spot when the image is first opened.
+    await element.evaluate((el) =>
+      el.scrollIntoView({ behavior: 'instant', block: 'center' })
+    );
+
+    // Capture the entire page
+    await page.screenshot({ path: filePath, fullPage: true });
+
+    // Remove overlay
+    await page.evaluate((id) => {
+      document.getElementById(id)?.remove();
+    }, OVERLAY_ID);
 
     return filename;
   } catch (err) {
@@ -91,15 +104,11 @@ export async function captureIssueScreenshot(
       { selector, issueId, err: err instanceof Error ? err.message : String(err) },
       'captureIssueScreenshot: failed, skipping screenshot'
     );
-    // Attempt style cleanup even after failure
+    // Attempt overlay cleanup even after failure
     try {
-      await page.evaluate((sel) => {
-        const el = document.querySelector(sel);
-        if (!el) return;
-        (el as HTMLElement).style.removeProperty('outline');
-        (el as HTMLElement).style.removeProperty('outline-offset');
-        (el as HTMLElement).style.removeProperty('background-color');
-      }, selector);
+      await page.evaluate((id) => {
+        document.getElementById(id)?.remove();
+      }, OVERLAY_ID);
     } catch {
       // Ignore cleanup errors
     }
